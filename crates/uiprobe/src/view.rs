@@ -1,7 +1,8 @@
 //! Finding elements: by accessible label (or, when no label matches, by the accessible
-//! placeholder text a text field carries instead), element id and role. A query that finds
-//! nothing (or too much) is a [`Finding`] that lists the nearest labels, so a renamed control
-//! is obvious; it never panics.
+//! placeholder text a text field carries instead), element id and role.
+//!
+//! A query that finds nothing (or too much) is a [`Finding`] that lists the nearest labels, so a
+//! renamed control is obvious; it never panics.
 //!
 //! Everything works on a [`WindowView`], a window's root element plus its logical size, so the
 //! same helpers serve the main window and every secondary window.
@@ -12,6 +13,29 @@
 
 use crate::{AccessibleRole, ElementHandle, ElementRoot, backend::pump, report::Finding};
 use slint::{ComponentHandle, platform::WindowEvent};
+
+pub mod geometry;
+
+pub use geometry::{Rect, nearest_within, wheel_steps};
+
+/// A pixel count as `f32`, the type Slint's sizes use.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "window dimensions are far below 2^24, where f32 is still exact"
+)]
+pub(crate) const fn px_f32(value: u32) -> f32 {
+    value as f32
+}
+
+/// The size of `window` in logical pixels (its physical size over the scale factor).
+pub(crate) fn logical_size(window: &slint::Window) -> (f32, f32) {
+    let physical = window.size();
+    let scale = window.scale_factor().max(f32::EPSILON);
+    (
+        px_f32(physical.width) / scale,
+        px_f32(physical.height) / scale,
+    )
+}
 
 /// One window (or one subtree, such as a dialog) to query and sweep.
 #[derive(Clone)]
@@ -27,16 +51,10 @@ pub struct WindowView {
 impl WindowView {
     /// The view of a whole window component, with its current logical size.
     pub fn of<C: ComponentHandle>(name: &str, component: &C) -> Self {
-        let window = component.window();
-        let physical = window.size();
-        let scale = window.scale_factor().max(f32::EPSILON);
         Self {
             name: name.to_owned(),
             root: component.root_element(),
-            size: (
-                physical.width as f32 / scale,
-                physical.height as f32 / scale,
-            ),
+            size: logical_size(component.window()),
         }
     }
 
@@ -301,7 +319,7 @@ fn similar(candidate: &str, wanted: &str) -> bool {
 
 /// Whether a role is something the user clicks, toggles or types into.
 #[must_use]
-pub fn is_interactive_role(role: AccessibleRole) -> bool {
+pub const fn is_interactive_role(role: AccessibleRole) -> bool {
     matches!(
         role,
         AccessibleRole::Button
@@ -319,7 +337,7 @@ pub fn is_interactive_role(role: AccessibleRole) -> bool {
 
 /// Whether activating the control (accessible default action) is a meaningful "click".
 #[must_use]
-pub fn is_clickable_role(role: AccessibleRole) -> bool {
+pub const fn is_clickable_role(role: AccessibleRole) -> bool {
     matches!(
         role,
         AccessibleRole::Button
@@ -405,14 +423,15 @@ impl Control {
     /// `Role "label" (Component::id)` for findings and messages.
     #[must_use]
     pub fn describe(&self) -> String {
+        use std::fmt::Write as _;
         let mut text = format!("{:?}", self.role);
         if !self.label.is_empty() {
-            text.push_str(&format!(" {:?}", self.label));
+            let _ = write!(text, " {:?}", self.label);
         }
         if !self.id.is_empty() {
-            text.push_str(&format!(" ({})", self.id));
+            let _ = write!(text, " ({})", self.id);
         } else if !self.type_name.is_empty() {
-            text.push_str(&format!(" <{}>", self.type_name));
+            let _ = write!(text, " <{}>", self.type_name);
         }
         text
     }
@@ -445,6 +464,26 @@ impl Control {
 ///
 /// A `bad-chord` finding when the chord does not parse; nothing is sent then.
 pub fn press(window: &slint::Window, chord: &str) -> Result<(), Finding> {
+    dispatch_chord(window, chord)?;
+    pump(50);
+    Ok(())
+}
+
+/// [`press`] without the 50 ms pump: the chord's events are dispatched and the event queue is
+/// drained, nothing more. The recorder uses it so that video time stays the only clock.
+///
+/// # Errors
+///
+/// A `bad-chord` finding when the chord does not parse; nothing is sent then.
+#[cfg(feature = "recording")]
+pub(crate) fn press_events(window: &slint::Window, chord: &str) -> Result<(), Finding> {
+    dispatch_chord(window, chord)?;
+    crate::backend::drain_events();
+    Ok(())
+}
+
+/// Dispatches the key events of `chord`: modifiers pressed first and released last.
+fn dispatch_chord(window: &slint::Window, chord: &str) -> Result<(), Finding> {
     let parsed = crate::keys::parse_chord(chord).map_err(|e| Finding::simple("bad-chord", e))?;
     let modifiers = parsed.modifier_keys();
     for key in &modifiers {
@@ -461,6 +500,5 @@ pub fn press(window: &slint::Window, chord: &str) -> Result<(), Finding> {
             text: (*key).into(),
         });
     }
-    pump(50);
     Ok(())
 }

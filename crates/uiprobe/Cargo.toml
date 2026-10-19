@@ -1,6 +1,6 @@
 [package]
 name = "uiprobe"
-version = "0.18.5"
+version = "0.18.8"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,11 @@ repository.workspace = true
 description = "Headless UI harness for Slint apps: invariant sweep, click-everything smoke, coverage gate, isolated profile"
 keywords = ["slint", "testing", "gui", "harness"]
 categories = ["development-tools::testing", "gui"]
+
+# docs.rs builds with default features only unless told otherwise; the screenshot and recording
+# modules (and `Renderer::Software`) are behind features.
+[package.metadata.docs.rs]
+all-features = true
 
 [dependencies]
 slint = { workspace = true, features = ["std", "compat-1-18"] }
@@ -24,6 +29,11 @@ png = { workspace = true, optional = true }
 # software renderer and the `screenshot` module captures, crops and saves them as PNG. Off by
 # default: the mock renderer is faster and machine independent.
 screenshots = ["dep:png", "i-slint-backend-testing/renderer-software"]
+
+# Video recording: the `recording` module plays the app frame by frame (software renderer), draws
+# a mouse cursor and click ripples over the pictures and pipes them to ffmpeg (MP4, captions,
+# chapters). Needs ffmpeg at run time, not at build time.
+recording = ["screenshots"]
 
 # Every self-test is its own process: the testing backend can be initialised once per process,
 # and the harness owns `main` (panic hook, exit code). `cargo test` runs each with exit code 0
@@ -96,6 +106,15 @@ harness = false
 name = "screenshots"
 harness = false
 required-features = ["screenshots"]
+
+[[test]]
+name = "recording"
+harness = false
+required-features = ["recording"]
+
+[[test]]
+name = "targeting"
+harness = false
 
 [lints]
 workspace = true

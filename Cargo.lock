@@ -343,9 +343,9 @@ checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 
 [[package]]
 name = "equivalent"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
+checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
 name = "euclid"
@@ -417,9 +417,9 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "font-types"
-version = "0.12.6"
+version = "0.12.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c92d9081c7ab3bd83ef1eecdfad090f3d966e3ce74106779664114cfe1a6274"
+checksum = "835ae9d781464a79026cde387f9cbc650c9a4909d7cf7e658b127e3c35d2f35d"
 dependencies = [
  "bytemuck",
 ]
@@ -1014,9 +1014,9 @@ checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
 
 [[package]]
 name = "libc"
-version = "0.2.190"
+version = "0.2.191"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
+checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
 name = "libloading"
@@ -1706,23 +1706,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "uiprobe"
-version = "0.18.5"
-dependencies = [
- "i-slint-backend-testing",
- "png",
- "serde",
- "serde_json",
- "slint",
- "uiprobe-hooks",
- "toml",
-]
-
-[[package]]
-name = "uiprobe-hooks"
-version = "0.1.0"
-
-[[package]]
 name = "slint-macros"
 version = "1.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2033,6 +2016,23 @@ dependencies = [
  "bincode",
  "serde",
 ]
+
+[[package]]
+name = "uiprobe"
+version = "0.18.8"
+dependencies = [
+ "i-slint-backend-testing",
+ "png",
+ "serde",
+ "serde_json",
+ "slint",
+ "toml",
+ "uiprobe-hooks",
+]
+
+[[package]]
+name = "uiprobe-hooks"
+version = "0.1.0"
 
 [[package]]
 name = "unicase"

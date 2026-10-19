@@ -37,7 +37,7 @@ pub enum Jobs {
 
 /// A parallel run decided by [`plan`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Plan {
+pub struct Plan {
     /// Whether the worker count grows while the run goes on.
     pub(crate) auto: bool,
     /// Workers started at the beginning.
@@ -58,12 +58,12 @@ impl Plan {
 }
 
 /// The default worker cap: the machine's parallelism, at least 1.
-pub(crate) fn default_max() -> usize {
+pub fn default_max() -> usize {
     std::thread::available_parallelism().map_or(1, usize::from)
 }
 
 /// Parses `serial`, `auto` or a number (case-insensitive); `None` on anything else.
-pub(crate) fn parse_jobs(text: &str) -> Option<Jobs> {
+pub fn parse_jobs(text: &str) -> Option<Jobs> {
     let text = text.trim().to_ascii_lowercase();
     match text.as_str() {
         "serial" => Some(Jobs::Serial),
@@ -73,7 +73,7 @@ pub(crate) fn parse_jobs(text: &str) -> Option<Jobs> {
 }
 
 /// Parses the worker cap: a number of at least 1.
-pub(crate) fn parse_max(text: &str) -> Option<usize> {
+pub fn parse_max(text: &str) -> Option<usize> {
     text.trim().parse::<usize>().ok().filter(|n| *n >= 1)
 }
 
@@ -81,7 +81,7 @@ pub(crate) fn parse_max(text: &str) -> Option<usize> {
 /// when set and valid, else the configured values (`max` `None` means the default cap).
 /// Invalid text is a `config` finding naming the variable and the accepted forms, and the
 /// configured value is kept.
-pub(crate) fn resolve(configured: Jobs, max: Option<usize>, report: &mut Report) -> (Jobs, usize) {
+pub fn resolve(configured: Jobs, max: Option<usize>, report: &mut Report) -> (Jobs, usize) {
     let jobs = resolve_one("UIPROBE_JOBS", "serial, 1, auto or a number", report)
         .and_then(|text| parse_jobs(&text))
         .unwrap_or(configured);
@@ -114,7 +114,7 @@ fn resolve_one(name: &str, forms: &str, report: &mut Report) -> Option<String> {
 /// Whether the run uses workers and how: `None` means serial (one selected scenario, `Serial`,
 /// or an effective count of 1 under `Fixed`). Workers never exceed the selected scenarios or
 /// `max`; `Auto` with at least two selected scenarios always uses workers (starting with one).
-pub(crate) fn plan(jobs: Jobs, max: usize, selected: usize) -> Option<Plan> {
+pub fn plan(jobs: Jobs, max: usize, selected: usize) -> Option<Plan> {
     if selected < 2 {
         return None;
     }

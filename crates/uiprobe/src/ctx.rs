@@ -15,7 +15,7 @@ use crate::{
     profile::ProfileDir,
     report::{Finding, Report},
     smoke::{BeforeRestore, Smoke, SmokeHost, SmokeStats},
-    view::WindowView,
+    view::{WindowView, logical_size, px_f32},
 };
 use slint::ComponentHandle;
 use std::{
@@ -27,10 +27,13 @@ use std::{
 };
 
 /// The app's error notice: `(kind, message)` when one is showing.
-pub(crate) type NoticeFn = Box<dyn FnMut() -> Option<(String, String)>>;
+pub type NoticeFn = Box<dyn FnMut() -> Option<(String, String)>>;
 
 /// Set by the first [`Ctx::launch`] of the process, which also checks for Slint debug info.
 static DEBUG_INFO_CHECKED: AtomicBool = AtomicBool::new(false);
+
+/// Finds the window of the stored component (see `window_of`).
+type WindowOf = Box<dyn Fn(&dyn Any) -> &slint::Window>;
 
 /// A window the harness launched or was handed. Owns the component (dropping it drops the
 /// window) plus anything else the app needs alive with it.
@@ -38,7 +41,7 @@ pub struct Attached {
     name: String,
     root: ElementHandle,
     component: Box<dyn Any>,
-    window: Box<dyn Fn(&dyn Any) -> &slint::Window>,
+    window: WindowOf,
     keep: Vec<Box<dyn Any>>,
 }
 
@@ -97,16 +100,10 @@ impl Attached {
     /// The window as a queryable view with its current size.
     #[must_use]
     pub fn view(&self) -> WindowView {
-        let window = self.window();
-        let physical = window.size();
-        let scale = window.scale_factor().max(f32::EPSILON);
         WindowView {
             name: self.name.clone(),
             root: self.root.clone(),
-            size: (
-                physical.width as f32 / scale,
-                physical.height as f32 / scale,
-            ),
+            size: logical_size(self.window()),
         }
     }
 
@@ -200,7 +197,7 @@ impl Ctx<'_> {
         let app = Attached::new(short_type_name::<C>(), component);
         if let Some(&(width, height)) = self.sizes.first() {
             app.window()
-                .set_size(slint::LogicalSize::new(width as f32, height as f32));
+                .set_size(slint::LogicalSize::new(px_f32(width), px_f32(height)));
         }
         pump(50);
         if !DEBUG_INFO_CHECKED.swap(true, Ordering::Relaxed)
@@ -231,7 +228,7 @@ impl Ctx<'_> {
     /// Resizes `app` (logical pixels) and lets the layout settle.
     pub fn resize(&mut self, app: &Attached, width: u32, height: u32) {
         app.window()
-            .set_size(slint::LogicalSize::new(width as f32, height as f32));
+            .set_size(slint::LogicalSize::new(px_f32(width), px_f32(height)));
         pump(30);
     }
 

@@ -231,9 +231,7 @@ fn finish(bad: &Mismatches, report: &Report) -> ExitCode {
         *got.entry(f.check.as_str()).or_insert(0) += 1;
     }
     if got != expected {
-        eprintln!(
-            "uiprobe self-test mismatch: per-check counts {got:?}, expected {expected:?}"
-        );
+        eprintln!("uiprobe self-test mismatch: per-check counts {got:?}, expected {expected:?}");
         for f in report.findings() {
             eprintln!(
                 "    {} | {} | {} | {} | {}",
@@ -256,14 +254,17 @@ fn main() -> ExitCode {
 }
 
 fn scenarios(bad: &Mismatches) -> Harness {
-    let (cascade_bad, cleared_bad, health_bad, actions_bad) = (
-        Rc::clone(bad),
-        Rc::clone(bad),
-        Rc::clone(bad),
-        Rc::clone(bad),
-    );
-    let (capped_bad, always_bad, none_bad) = (Rc::clone(bad), Rc::clone(bad), Rc::clone(bad));
-    Harness::new()
+    let harness = Harness::new();
+    let harness = toast_scenarios(harness, bad);
+    let harness = health_scenario(harness, bad);
+    let harness = action_scenario(harness, bad);
+    option_scenarios(harness, bad)
+}
+
+/// The error-toast cascade and its clearing.
+fn toast_scenarios(harness: Harness, bad: &Mismatches) -> Harness {
+    let (cascade_bad, cleared_bad) = (Rc::clone(bad), Rc::clone(bad));
+    harness
         .scenario("toast cascade", move |ctx| {
             let slot = ToastSlot::default();
             register_notice(ctx, &slot);
@@ -295,108 +296,123 @@ fn scenarios(bad: &Mismatches) -> Harness {
             }
             Ok(())
         })
-        .scenario("health", move |ctx| {
-            let slot = ToastSlot::default();
-            register_notice(ctx, &slot);
-            let app = launch_toast(ctx, &slot)?;
-            let view = ctx.view(&app);
-            let _ = view.click("Toast")?;
-            pump(20);
-            ctx.check_health("after toast");
-            let shown = ctx.report().findings().iter().any(|f| {
-                f.check == "error-toast" && f.detail.starts_with("after toast: error: sticky")
-            });
-            if !shown {
-                mismatch(
-                    &health_bad,
-                    "health: no error-toast `after toast: error: sticky`".to_owned(),
-                );
-            }
-            drop(view);
-            ctx.shutdown(app);
+}
 
-            let hit = Rc::new(Cell::new(false));
-            let app = launch_action(ctx, &hit)?;
-            let view = ctx.view(&app);
-            let _ = view.click("Open")?;
-            ctx.check_health("dialog");
-            let dialogs = count_of(ctx.report(), "unexpected-file-dialog");
-            let named = ctx
-                .report()
-                .findings()
-                .iter()
-                .any(|f| f.check == "unexpected-file-dialog" && f.detail.contains("Open file"));
-            expect_eq(&health_bad, "health: dialog findings", dialogs, 1);
-            if !named {
-                mismatch(
-                    &health_bad,
-                    "health: the dialog finding does not name `Open file`".to_owned(),
-                );
-            }
-            ctx.hooks().queue_cancel();
-            let _ = view.click("Open")?;
-            ctx.check_health("queued");
-            let after = count_of(ctx.report(), "unexpected-file-dialog");
-            expect_eq(
+/// The end-of-scenario health check: a sticky toast and an unexpected file dialog.
+fn health_scenario(harness: Harness, bad: &Mismatches) -> Harness {
+    let health_bad = Rc::clone(bad);
+    harness.scenario("health", move |ctx| {
+        let slot = ToastSlot::default();
+        register_notice(ctx, &slot);
+        let app = launch_toast(ctx, &slot)?;
+        let view = ctx.view(&app);
+        let _ = view.click("Toast")?;
+        pump(20);
+        ctx.check_health("after toast");
+        let shown = ctx.report().findings().iter().any(|f| {
+            f.check == "error-toast" && f.detail.starts_with("after toast: error: sticky")
+        });
+        if !shown {
+            mismatch(
                 &health_bad,
-                "health: dialog findings after a queued answer",
-                after,
-                1,
+                "health: no error-toast `after toast: error: sticky`".to_owned(),
             );
-            drop(view);
-            ctx.shutdown(app);
-            Ok(())
-        })
-        .scenario("actions", move |ctx| {
-            let hit = Rc::new(Cell::new(false));
-            let before = Rc::new(Cell::new(0_usize));
-            let counter = Rc::clone(&before);
-            let smoke =
-                Smoke::new("actions").before_restore(move |_| counter.set(counter.get() + 1));
-            let stats = ctx.smoke(smoke, |ctx| launch_action(ctx, &hit).map(|app| vec![app]));
-            let panics = elements_of(ctx.report(), "panic", "actions");
-            if panics.len() != 1 || !names_once(&panics, "Boom") {
-                mismatch(
-                    &actions_bad,
-                    format!("actions: expected one panic on Boom, got {panics:?}"),
-                );
-            }
-            let detail_ok = ctx
-                .report()
-                .findings()
-                .iter()
-                .any(|f| f.check == "panic" && f.detail.contains("boom pressed"));
-            if !detail_ok {
-                mismatch(
-                    &actions_bad,
-                    "actions: no panic detail contains `boom pressed`".to_owned(),
-                );
-            }
-            let closed = elements_of(ctx.report(), "main-closed", "actions");
-            if closed.len() != 1 || !names_once(&closed, "Close") {
-                mismatch(
-                    &actions_bad,
-                    format!("actions: expected one main-closed on Close, got {closed:?}"),
-                );
-            }
-            expect_eq(&actions_bad, "actions: stats.denied", stats.denied, 1);
-            expect_eq(&actions_bad, "actions: stats.activated", stats.activated, 4);
-            expect_eq(&actions_bad, "actions: stats.gone", stats.gone, 0);
-            if hit.get() {
-                mismatch(
-                    &actions_bad,
-                    "actions: `Delete all` was activated".to_owned(),
-                );
-            }
-            // The initial restore and the end of the pass run it as well as every restore.
-            expect_eq(
+        }
+        drop(view);
+        ctx.shutdown(app);
+
+        let hit = Rc::new(Cell::new(false));
+        let app = launch_action(ctx, &hit)?;
+        let view = ctx.view(&app);
+        let _ = view.click("Open")?;
+        ctx.check_health("dialog");
+        let dialogs = count_of(ctx.report(), "unexpected-file-dialog");
+        let named = ctx
+            .report()
+            .findings()
+            .iter()
+            .any(|f| f.check == "unexpected-file-dialog" && f.detail.contains("Open file"));
+        expect_eq(&health_bad, "health: dialog findings", dialogs, 1);
+        if !named {
+            mismatch(
+                &health_bad,
+                "health: the dialog finding does not name `Open file`".to_owned(),
+            );
+        }
+        ctx.hooks().queue_cancel();
+        let _ = view.click("Open")?;
+        ctx.check_health("queued");
+        let after = count_of(ctx.report(), "unexpected-file-dialog");
+        expect_eq(
+            &health_bad,
+            "health: dialog findings after a queued answer",
+            after,
+            1,
+        );
+        drop(view);
+        ctx.shutdown(app);
+        Ok(())
+    })
+}
+
+/// The deny list, a panic and a closed main window.
+fn action_scenario(harness: Harness, bad: &Mismatches) -> Harness {
+    let actions_bad = Rc::clone(bad);
+    harness.scenario("actions", move |ctx| {
+        let hit = Rc::new(Cell::new(false));
+        let before = Rc::new(Cell::new(0_usize));
+        let counter = Rc::clone(&before);
+        let smoke = Smoke::new("actions").before_restore(move |_| counter.set(counter.get() + 1));
+        let stats = ctx.smoke(smoke, |ctx| launch_action(ctx, &hit).map(|app| vec![app]));
+        let panics = elements_of(ctx.report(), "panic", "actions");
+        if panics.len() != 1 || !names_once(&panics, "Boom") {
+            mismatch(
                 &actions_bad,
-                "actions: before_restore calls",
-                before.get(),
-                stats.restores + 2,
+                format!("actions: expected one panic on Boom, got {panics:?}"),
             );
-            Ok(())
-        })
+        }
+        let detail_ok = ctx
+            .report()
+            .findings()
+            .iter()
+            .any(|f| f.check == "panic" && f.detail.contains("boom pressed"));
+        if !detail_ok {
+            mismatch(
+                &actions_bad,
+                "actions: no panic detail contains `boom pressed`".to_owned(),
+            );
+        }
+        let closed = elements_of(ctx.report(), "main-closed", "actions");
+        if closed.len() != 1 || !names_once(&closed, "Close") {
+            mismatch(
+                &actions_bad,
+                format!("actions: expected one main-closed on Close, got {closed:?}"),
+            );
+        }
+        expect_eq(&actions_bad, "actions: stats.denied", stats.denied, 1);
+        expect_eq(&actions_bad, "actions: stats.activated", stats.activated, 4);
+        expect_eq(&actions_bad, "actions: stats.gone", stats.gone, 0);
+        if hit.get() {
+            mismatch(
+                &actions_bad,
+                "actions: `Delete all` was activated".to_owned(),
+            );
+        }
+        // The initial restore and the end of the pass run it as well as every restore.
+        expect_eq(
+            &actions_bad,
+            "actions: before_restore calls",
+            before.get(),
+            stats.restores + 2,
+        );
+        Ok(())
+    })
+}
+
+/// The smoke options: the control cap, always restoring and no windows.
+fn option_scenarios(harness: Harness, bad: &Mismatches) -> Harness {
+    let (capped_bad, always_bad, none_bad) = (Rc::clone(bad), Rc::clone(bad), Rc::clone(bad));
+    harness
         .scenario("capped", move |ctx| {
             let slot = ToastSlot::default();
             let stats = ctx.smoke(Smoke::new("capped").max_controls(1), |ctx| {

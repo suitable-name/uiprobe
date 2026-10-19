@@ -7,7 +7,11 @@
 use slint::{SharedString, platform::Key};
 
 /// A parsed chord.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the four modifier keys are independent flags and public fields of the API"
+)]
 pub struct Chord {
     /// Ctrl held.
     pub ctrl: bool,

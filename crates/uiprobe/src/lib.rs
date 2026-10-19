@@ -53,6 +53,8 @@
 //! * [`Harness`] builds and runs; [`Ctx`] is what a scenario receives; [`Attached`] is a
 //!   launched window; the [`prelude`] has all of them.
 //! * [`view`]: finding and clicking elements by label, placeholder, id or role.
+//! * [`targeting`]: where to click and what to scroll: `Spot`s with their visible rectangle,
+//!   queries that fail on ambiguity, and scroll plans ([`view::geometry`] holds the pure math).
 //! * [`checks`]: the geometry sweep and its thresholds ([`checks::SweepOptions`]).
 //! * [`smoke`]: the click-everything pass, its deny rules and counters.
 //! * [`coverage`]: the opt-in gate over the `.slint` sources and its allow list.
@@ -63,6 +65,8 @@
 //! * [`backend`]: pumping mock time and waiting on the app.
 //! * [`timing`]: where a run spends its real time (per-scenario samples, console line, report
 //!   section).
+//! * `recording` (feature `recording`): MP4 videos of an app run with a drawn cursor, captions
+//!   and chapters.
 //!
 //! The README (the crates.io page and the repository root) is the setup guide: the quick-start
 //! checklist, every hook, the coverage gate, troubleshooting, and the `examples/counter` and
@@ -77,6 +81,8 @@ pub mod keys;
 mod panics;
 mod parallel;
 pub mod profile;
+#[cfg(feature = "recording")]
+pub mod recording;
 mod render;
 pub mod report;
 mod runner;
@@ -84,6 +90,7 @@ mod scene;
 #[cfg(feature = "screenshots")]
 pub mod screenshot;
 pub mod smoke;
+pub mod targeting;
 pub mod timing;
 mod timing_report;
 pub mod view;
@@ -94,9 +101,10 @@ pub use panics::take_panics;
 pub use runner::{Harness, Jobs, target_dir_from};
 pub use uiprobe_hooks as hooks;
 
-/// The exact Slint version this release of the harness is built against: the `=` pin on
-/// `slint` and `i-slint-backend-testing` in the harness's own manifest. The crate's minor
-/// version tracks Slint's (`uiprobe 0.18.x` serves Slint 1.18.x), which the unit test
+/// The exact Slint version this release of the harness is built against.
+///
+/// It is the `=` pin on `slint` and `i-slint-backend-testing` in the harness's own manifest. The
+/// crate's minor version tracks Slint's (`uiprobe 0.18.x` serves Slint 1.18.x), which the unit test
 /// in this file enforces. The first console line of every run and the `slint` field of
 /// `report.json` show it.
 pub const SLINT_VERSION: &str = "1.18.1";
@@ -104,6 +112,8 @@ pub const SLINT_VERSION: &str = "1.18.1";
 /// Everything a harness `main` and its scenarios usually need, `ExitCode` for the `main`
 /// signature included.
 pub mod prelude {
+    #[cfg(feature = "recording")]
+    pub use crate::recording::{Recorder, RecorderOptions};
     pub use crate::{
         AccessibleRole, Attached, Ctx, ElementHandle, ElementRoot, Harness, Hooks, Jobs,
         SLINT_VERSION,
@@ -121,8 +131,9 @@ pub mod prelude {
     pub use std::process::ExitCode;
 }
 
-/// The cargo target directory of the calling crate. Integration tests and benches get it from
-/// the compile-time `CARGO_TARGET_TMPDIR`; any other target (a bin, a unit test) falls back to
+/// The cargo target directory of the calling crate.
+///
+/// Integration tests and benches get it from the compile-time `CARGO_TARGET_TMPDIR`; any other target (a bin, a unit test) falls back to
 /// the run-time variable, then to the test binary's location. A macro because `option_env!`
 /// expands in the crate being compiled: inside this library it would name the harness crate.
 #[macro_export]

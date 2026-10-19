@@ -24,11 +24,11 @@
 //! The fixture text below must match `tests/fixtures/coverage_matching/ui/app.slint`, which the
 //! gate scans (relative to `CARGO_MANIFEST_DIR`). Run this test WITHOUT a scenario filter.
 
+use std::process::{Command, ExitCode};
 use uiprobe::{
     coverage::{record_site_id, record_wrappers},
     prelude::{Coverage, Ctx, Finding, Harness, Jobs, Report},
 };
-use std::process::{Command, ExitCode};
 
 slint::slint! {
     import { Button, LineEdit } from "std-widgets.slint";
@@ -108,9 +108,7 @@ fn single_site(ctx: &mut Ctx<'_>) -> Result<(), Finding> {
 
 fn harness(mode: &str, jobs: Jobs) -> Harness {
     Harness::new()
-        .report_dir(
-            uiprobe::target_dir!().join(format!("uiprobe-coverage-matching-{mode}")),
-        )
+        .report_dir(uiprobe::target_dir!().join(format!("uiprobe-coverage-matching-{mode}")))
         .coverage(
             Coverage::scan(SCAN_ROOT)
                 .label_props(&["reader_label"])

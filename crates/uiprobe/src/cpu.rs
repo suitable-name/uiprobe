@@ -23,7 +23,7 @@ struct Totals {
 }
 
 /// Measures how many cores were idle between two calls.
-pub(crate) struct CpuSampler {
+pub struct CpuSampler {
     /// The counters at the previous call (`None` when the first reading failed).
     last: Option<Totals>,
 }
@@ -54,6 +54,10 @@ fn core_count() -> f64 {
 /// Idle cores from two counter readings: the idle share of the elapsed ticks times `cores`.
 /// `None` when no time passed or a counter went backwards (a wrap or a reset), because the
 /// share is then meaningless.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "the operands are tick differences between two samples seconds apart, far below 2^52"
+)]
 fn idle_cores_between(previous: Totals, now: Totals, cores: f64) -> Option<f64> {
     let total = now.total.checked_sub(previous.total)?;
     let idle = now.idle.checked_sub(previous.idle)?;
@@ -90,7 +94,7 @@ fn read_totals() -> Option<Totals> {
     let mut user = FileTime::default();
     // SAFETY: the three pointers refer to live, writable `FileTime` values whose layout matches
     // the Win32 `FILETIME` (two u32), and `GetSystemTimes` only writes through them.
-    let ok = unsafe { GetSystemTimes(&mut idle, &mut kernel, &mut user) };
+    let ok = unsafe { GetSystemTimes(&raw mut idle, &raw mut kernel, &raw mut user) };
     if ok == 0 {
         return None;
     }

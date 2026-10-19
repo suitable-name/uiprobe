@@ -11,7 +11,7 @@ static PANICS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static INSTALL: Once = Once::new();
 
 /// Installs the recording hook (once per process; later calls do nothing).
-pub(crate) fn install_panic_recorder() {
+pub fn install_panic_recorder() {
     INSTALL.call_once(|| {
         let previous = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |info| {

@@ -56,7 +56,7 @@ pre{background:var(--pre);padding:.5rem;overflow:auto}\n\
 /// the scenario table (column headers with `scope`), section bodies in an escaped `<pre>`,
 /// windows as `<details open>` whose `<summary>` holds the window's `<h2>` (so a screen
 /// reader's heading list shows them), checks as `<h3>`, findings as `<li>`.
-pub(crate) fn html(report: &Report) -> String {
+pub fn html(report: &Report) -> String {
     let mut out = String::new();
     out.push_str(HEAD);
     let count = report.findings.len();
@@ -142,7 +142,7 @@ pub(crate) fn html(report: &Report) -> String {
 
 /// The plain-text report: the Markdown content without markup, two-space indents, continuation
 /// lines of a multi-line detail aligned under the detail column.
-pub(crate) fn text(report: &Report) -> String {
+pub fn text(report: &Report) -> String {
     let mut out = String::new();
     out.push_str("uiprobe report\n");
     let _ = writeln!(

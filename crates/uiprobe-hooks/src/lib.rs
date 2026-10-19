@@ -135,6 +135,7 @@ pub mod clipboard {
 
     /// Called by the app's copy routine (feature on only) instead of writing the system
     /// clipboard: remembers the text. Always returns `true` (handled).
+    #[must_use]
     pub fn capture(text: &str) -> bool {
         lock(&CLIPBOARD).push(text.to_owned());
         true
@@ -156,6 +157,7 @@ pub mod opener {
 
     /// Called by the app's launcher (feature on only) instead of starting the OS opener:
     /// remembers the (already validated) URL or path. Always returns `true` (handled).
+    #[must_use]
     pub fn capture(target: &str) -> bool {
         lock(&OPENED).push(target.to_owned());
         true
@@ -168,9 +170,10 @@ pub mod opener {
     }
 }
 
-/// A data-directory override for apps that resolve their config dir through the OS (Known
-/// Folders on Windows ignore `APPDATA`, so the harness's environment redirect cannot reach
-/// them). The harness sets it to a directory inside its throw-away profile; the app, under its
+/// A data-directory override for apps that resolve their config dir through the OS.
+///
+/// Known Folders on Windows ignore `APPDATA`, so the harness's environment redirect cannot reach
+/// them. The harness sets it to a directory inside its throw-away profile; the app, under its
 /// feature, asks [`paths::data_dir`] first and falls back to its normal lookup on `None`.
 pub mod paths {
     use super::lock;
@@ -235,13 +238,13 @@ mod tests {
         assert!(clipboard::capture("one"));
         assert!(clipboard::capture("two"));
         assert_eq!(clipboard::take(), ["one", "two"]);
-        assert!(clipboard::take().is_empty());
+        assert_eq!(clipboard::take().len(), 0);
 
         // Opener: capture -> take -> empty.
         let _ = opener::take();
         assert!(opener::capture("https://example.com"));
         assert_eq!(opener::take(), ["https://example.com"]);
-        assert!(opener::take().is_empty());
+        assert_eq!(opener::take().len(), 0);
 
         // Paths: unset until set, then returned.
         paths::set_data_dir(PathBuf::from("profile/data"));

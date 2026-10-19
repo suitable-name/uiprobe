@@ -57,12 +57,10 @@ type Mismatches = Rc<RefCell<Vec<String>>>;
 fn expect_count(bad: &Mismatches, what: &str, findings: &[Finding], check: &str, want: usize) {
     let hits: Vec<&Finding> = findings.iter().filter(|f| f.check == check).collect();
     if hits.len() != want {
+        use std::fmt::Write as _;
         let mut text = format!("{what}: {check}: expected {want}, got {}", hits.len());
         for f in hits {
-            text.push_str(&format!(
-                "\n    {} | {} | {}",
-                f.window, f.element, f.detail
-            ));
+            let _ = write!(text, "\n    {} | {} | {}", f.window, f.element, f.detail);
         }
         bad.borrow_mut().push(text);
     }
@@ -104,7 +102,7 @@ fn main() -> ExitCode {
     let smoke_sink = Rc::clone(&bad);
     let report = harness
         .scenario("modal sweep", move |ctx| {
-            let app = ctx.launch(|| Fixture::new())?;
+            let app = ctx.launch(Fixture::new)?;
             let findings = sweep(&app.view(), ctx.sweep_options());
             expect_count(&sweep_sink, "default sweep", &findings, "overlap", 0);
             // `modal_cover: 2.0` means no TouchArea can qualify as a backdrop, so the two
@@ -120,7 +118,7 @@ fn main() -> ExitCode {
         })
         .scenario("modal smoke", move |ctx| {
             let stats = ctx.smoke(Smoke::new("modal"), |ctx| {
-                Ok(vec![ctx.launch(|| Fixture::new())?])
+                Ok(vec![ctx.launch(Fixture::new)?])
             });
             expect_eq(&smoke_sink, "stats.blocked", stats.blocked, 2);
             expect_eq(&smoke_sink, "stats.activated", stats.activated, 0);
@@ -135,7 +133,7 @@ fn main() -> ExitCode {
         })
         .scenario("modal smoke strict", move |ctx| {
             let stats = ctx.smoke(Smoke::new("modal strict"), |ctx| {
-                Ok(vec![ctx.launch(|| Fixture::new())?])
+                Ok(vec![ctx.launch(Fixture::new)?])
             });
             expect_eq(&strict_sink, "strict stats.blocked", stats.blocked, 0);
             expect_eq(&strict_sink, "strict stats.activated", stats.activated, 2);

@@ -18,8 +18,8 @@
 
 use notes::{HELP_URL, NotesWindow, build, settings_path};
 use slint::{ComponentHandle, Weak};
-use uiprobe::{coverage::record_callback, prelude::*};
 use std::{cell::RefCell, fs, process::ExitCode, rc::Rc, time::Duration};
+use uiprobe::{coverage::record_callback, prelude::*};
 
 /// The window the notice routines read: set by every launch, so a relaunch during the smoke
 /// pass keeps the reader current.
@@ -249,6 +249,10 @@ fn settings(ctx: &mut Ctx<'_>) -> Result<(), Finding> {
     Ok(())
 }
 
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "a scenario function has the signature `Harness::scenario` asks for"
+)]
 fn smoke(ctx: &mut Ctx<'_>) -> Result<(), Finding> {
     let slot = NoticeSlot::default();
     watch_notice(ctx, &slot);

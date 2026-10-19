@@ -248,7 +248,7 @@ no report (README, Troubleshooting).
 
 ```text
 $ UIPROBE_FILTER=open,save cargo test --features ui-harness --test ui
-uiprobe 0.18.5 (Slint 1.18.1): 2 of 7 scenario(s) selected, report dir target/uiprobe/my-app
+uiprobe 0.18.8 (Slint 1.18.1): 2 of 7 scenario(s) selected, report dir target/uiprobe/my-app
 ```
 
 ## Speed up a long suite

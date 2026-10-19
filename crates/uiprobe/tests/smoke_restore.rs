@@ -69,7 +69,7 @@ fn main() -> ExitCode {
     let report = harness
         .scenario("smoke restore", move |ctx| {
             let stats = ctx.smoke(Smoke::new("hide"), |ctx| {
-                Ok(vec![ctx.launch(|| Fixture::new())?])
+                Ok(vec![ctx.launch(Fixture::new)?])
             });
             let mut problems = sink.borrow_mut();
             if stats.gone != 0 {

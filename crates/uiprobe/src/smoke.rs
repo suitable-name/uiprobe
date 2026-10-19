@@ -125,8 +125,9 @@ impl DenyRule {
     }
 }
 
-/// Controls the engine never activates by default: generic destructive or app-ending words
-/// only. Apps pass their own (exports, renders, network) with [`Smoke::deny_rules`]; Indicatrix
+/// Controls the engine never activates by default: generic destructive or app-ending words only.
+///
+/// Apps pass their own (exports, renders, network) with [`Smoke::deny_rules`]; Indicatrix
 /// adds export/render/claim/enroll/sync/download/update-check rules this way.
 pub const DEFAULT_DENY: &[DenyRule] = &[
     DenyRule::label(DenyMatch::Contains, "delete", "destroys data"),
@@ -524,15 +525,16 @@ fn run_pass(host: &mut dyn SmokeHost, smoke: &Smoke, stats: &mut SmokeStats) {
             _ => {
                 // Stale handle or a changed state: re-establish and look again.
                 match restore_into(host, &mut views, &mut baseline, stats, skip, &options) {
-                    Ok(()) => match locate(&views, target, skip, &options, &*host) {
-                        Some(control) => control,
-                        None => {
+                    Ok(()) => {
+                        if let Some(control) = locate(&views, target, skip, &options, &*host) {
+                            control
+                        } else {
                             stats.gone += 1;
                             host.report()
                                 .note(format!("smoke: {} not found again", target.describe));
                             continue;
                         }
-                    },
+                    }
                     Err(()) => return,
                 }
             }

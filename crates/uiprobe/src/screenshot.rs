@@ -41,9 +41,11 @@ pub struct Shot {
 }
 
 /// Resizes `window` to `logical` pixels drawn at `scale` physical pixels per logical pixel (2.0
-/// for a HiDPI picture); the capture is then `logical * scale` pixels. The testing backend has
-/// no real scale factor of its own: this dispatches the scale change, sets the physical size and
-/// then the logical size, in that order. Pump afterwards so the layout follows.
+/// for a `HiDPI` picture); the capture is then `logical * scale` pixels.
+///
+/// The testing backend has no real scale factor of its own: this dispatches the scale change,
+/// sets the physical size and then the logical size, in that order. Pump afterwards so the layout
+/// follows.
 pub fn set_window_size(window: &slint::Window, logical: (u32, u32), scale: f32) {
     let scale = if scale.is_finite() && scale > 0.0 {
         scale
@@ -131,6 +133,28 @@ impl Shot {
         self.buffer.as_slice()
     }
 
+    /// The pixels as bytes (RGBA, row by row), for the video encoder's pipe.
+    #[cfg(feature = "recording")]
+    pub(crate) fn bytes(&self) -> &[u8] {
+        self.buffer.as_bytes()
+    }
+
+    /// The pixels for drawing into (copies them first when the buffer is shared).
+    #[cfg(feature = "recording")]
+    pub(crate) fn pixels_mut(&mut self) -> &mut [Rgba8Pixel] {
+        self.buffer.make_mut_slice()
+    }
+
+    /// A picture made of `buffer`, drawn at `scale` (for the recorder's resampled frames).
+    #[cfg(feature = "recording")]
+    pub(crate) const fn from_buffer(buffer: SharedPixelBuffer<Rgba8Pixel>, scale: f32) -> Self {
+        Self {
+            buffer,
+            scale,
+            origin: (0, 0),
+        }
+    }
+
     /// The pixel at `(x, y)` (physical pixels of this picture), `None` outside it.
     #[must_use]
     pub fn pixel(&self, x: u32, y: u32) -> Option<Rgba8Pixel> {
@@ -178,8 +202,8 @@ impl Shot {
         self.crop_logical(
             position.x - margin,
             position.y - margin,
-            size.width + 2.0 * margin,
-            size.height + 2.0 * margin,
+            2.0_f32.mul_add(margin, size.width),
+            2.0_f32.mul_add(margin, size.height),
         )
     }
 
@@ -237,6 +261,61 @@ impl Shot {
             let to = (y + row) * stride + x;
             let from = row * other_stride;
             target[to..to + columns].copy_from_slice(&source[from..from + columns]);
+        }
+    }
+
+    /// This picture resampled (bilinear) to `width` x `height` physical pixels, drawn at `scale`.
+    /// Used to bring a second window captured at another scale factor to the scale of the
+    /// recording it is composited into.
+    #[cfg(feature = "recording")]
+    #[must_use]
+    #[expect(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "picture dimensions are far below 2^24; sample indices are clamped into the \
+                  picture before they are truncated"
+    )]
+    pub(crate) fn resized(&self, width: u32, height: u32, scale: f32) -> Self {
+        let (width, height) = (width.max(1), height.max(1));
+        let (sw, sh) = (self.width().max(1), self.height().max(1));
+        let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(width, height);
+        let target = buffer.make_mut_slice();
+        let source = self.pixels();
+        let fx = sw as f32 / width as f32;
+        let fy = sh as f32 / height as f32;
+        let stride = to_index(sw);
+        for y in 0..height {
+            let gy = (y as f32 + 0.5)
+                .mul_add(fy, -0.5)
+                .clamp(0.0, (sh - 1) as f32);
+            let (y0, ty) = (gy.floor() as u32, gy.fract());
+            let y1 = (y0 + 1).min(sh - 1);
+            for x in 0..width {
+                let gx = (x as f32 + 0.5)
+                    .mul_add(fx, -0.5)
+                    .clamp(0.0, (sw - 1) as f32);
+                let (x0, tx) = (gx.floor() as u32, gx.fract());
+                let x1 = (x0 + 1).min(sw - 1);
+                let at = |px: u32, py: u32| source[to_index(py) * stride + to_index(px)];
+                let (a, b, c, d) = (at(x0, y0), at(x1, y0), at(x0, y1), at(x1, y1));
+                let mix = |p: u8, q: u8, r: u8, s: u8| {
+                    let top = f32::from(p).mul_add(1.0 - tx, f32::from(q) * tx);
+                    let bottom = f32::from(r).mul_add(1.0 - tx, f32::from(s) * tx);
+                    top.mul_add(1.0 - ty, bottom * ty).round().clamp(0.0, 255.0) as u8
+                };
+                target[to_index(y) * to_index(width) + to_index(x)] = Rgba8Pixel::new(
+                    mix(a.r, b.r, c.r, d.r),
+                    mix(a.g, b.g, c.g, d.g),
+                    mix(a.b, b.b, c.b, d.b),
+                    mix(a.a, b.a, c.a, d.a),
+                );
+            }
+        }
+        Self {
+            buffer,
+            scale,
+            origin: (0, 0),
         }
     }
 
@@ -359,6 +438,18 @@ mod tests {
         assert_eq!(canvas.pixel(2, 2), Some(Rgba8Pixel::new(0, 0, 0, 0)));
         canvas.paste(&gradient(4, 4, 1.0), 9, 9);
         assert_eq!(canvas.pixel(5, 4), Some(Rgba8Pixel::new(2, 2, 0, 255)));
+    }
+
+    #[cfg(feature = "recording")]
+    #[test]
+    fn resized_keeps_a_flat_colour_and_the_new_size() {
+        let mut flat = Shot::blank(4, 4, 1.0);
+        flat.fill(Rgba8Pixel::new(10, 20, 30, 255));
+        let big = flat.resized(8, 6, 2.0);
+        assert_eq!((big.width(), big.height()), (8, 6));
+        assert!((big.scale() - 2.0).abs() < f32::EPSILON);
+        assert_eq!(big.pixel(7, 5), Some(Rgba8Pixel::new(10, 20, 30, 255)));
+        assert_eq!(big.pixel(3, 2), Some(Rgba8Pixel::new(10, 20, 30, 255)));
     }
 
     #[test]

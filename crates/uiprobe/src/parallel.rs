@@ -27,7 +27,7 @@
 
 mod worker;
 
-pub(crate) use worker::{WorkerSetup, run_worker};
+pub use worker::{WorkerSetup, run_worker};
 
 use crate::{
     coverage::Coverage,
@@ -47,7 +47,7 @@ use std::{
 };
 
 /// Starts every worker-to-coordinator protocol line.
-pub(crate) const MARKER: &str = "\u{1e}uiprobe-worker ";
+pub const MARKER: &str = "\u{1e}uiprobe-worker ";
 /// The environment variable that makes a process a worker (internal; its value is the index of
 /// the `run_to_report` call that is the parallel run).
 const WORKER_ENV: &str = "UIPROBE_WORKER";
@@ -61,12 +61,12 @@ const MAX_EARLY_DEATHS: usize = 3;
 const TAIL_LINES: usize = 10;
 
 /// The run index this process was told to serve, if it is a worker.
-pub(crate) fn worker_run_index() -> Option<usize> {
+pub fn worker_run_index() -> Option<usize> {
     std::env::var(WORKER_ENV).ok()?.trim().parse().ok()
 }
 
 /// Sends one protocol message to the coordinator (worker side).
-pub(crate) fn send_message(value: &Value) {
+pub fn send_message(value: &Value) {
     let mut out = std::io::stdout().lock();
     let _ = out.write_all(b"\n");
     let _ = out.flush();
@@ -77,17 +77,12 @@ pub(crate) fn send_message(value: &Value) {
 /// Whether `Jobs::Auto` adds a worker now: scenarios wait, the cap is not reached and at least
 /// 1.5 cores were idle over the last interval (`None`, not measurable, means grow by one per
 /// interval).
-pub(crate) fn should_grow(
-    idle_cores: Option<f64>,
-    running: usize,
-    max: usize,
-    queued: usize,
-) -> bool {
+pub fn should_grow(idle_cores: Option<f64>, running: usize, max: usize, queued: usize) -> bool {
     queued > 0 && running < max && idle_cores.is_none_or(|idle| idle >= MIN_IDLE_CORES)
 }
 
 /// Everything the coordinator needs from `Harness::run_to_report`.
-pub(crate) struct CoordinatorSetup {
+pub struct CoordinatorSetup {
     /// The report so far (config findings); the merged results go into it.
     pub(crate) report: Report,
     /// The index workers are told to serve.
@@ -127,6 +122,10 @@ struct Slot {
 }
 
 /// One worker process as the coordinator sees it.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent lifecycle flags set by separate worker messages, not exclusive states"
+)]
 struct Worker {
     child: Child,
     stdin: Option<ChildStdin>,
@@ -179,7 +178,7 @@ struct Coordinator {
 
 /// Runs the selected scenarios in worker processes and returns the merged, finished report
 /// (coverage gate included). Ends the process with exit code 2 when a worker aborts.
-pub(crate) fn coordinate(setup: CoordinatorSetup) -> Report {
+pub fn coordinate(setup: CoordinatorSetup) -> Report {
     let CoordinatorSetup {
         report,
         run_index,
@@ -394,15 +393,14 @@ impl Coordinator {
         if worker.tail.len() > TAIL_LINES {
             worker.tail.pop_front();
         }
-        match worker.current {
-            Some(slot) => self.slots[slot].lines.push((err, text)),
-            None => {
-                let line = format!("uiprobe: worker {}: {text}", w + 1);
-                if err {
-                    eprintln!("{line}");
-                } else {
-                    println!("{line}");
-                }
+        if let Some(slot) = worker.current {
+            self.slots[slot].lines.push((err, text));
+        } else {
+            let line = format!("uiprobe: worker {}: {text}", w + 1);
+            if err {
+                eprintln!("{line}");
+            } else {
+                println!("{line}");
             }
         }
     }

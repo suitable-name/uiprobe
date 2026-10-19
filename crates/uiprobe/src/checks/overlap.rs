@@ -9,7 +9,7 @@
 //!    control's centre inside it. For example, in Indicatrix: the backdrop `TouchArea {}` of
 //!    `WelcomeDialog`, `ConfirmActionDialog`, `NewDesignDialog` and the command palette in
 //!    `ui/components/*_dialog.slint`. Slint draws in document order, so everything before the
-//!    backdrop is covered and cannot be clicked. The EmptyState card grid has no backdrop
+//!    backdrop is covered and cannot be clicked. The `EmptyState` card grid has no backdrop
 //!    `TouchArea` and so is not hidden by this: a card grid that covers the editor command bar
 //!    (`EmptyState::*` against `FileActionsGroup::*` at 720x480) is a real overlap;
 //! 3. a control laid on a header-size `TouchArea` backdrop on purpose: the `TouchArea` is a
@@ -19,7 +19,7 @@
 //!    `SectionHeader::touch` declares the hit area first and the right-side `@children` slot
 //!    after it, so the Tier/Preform/Optimize pills draw on top and win the click
 //!    (`ui/components/section_header.slint` lines 23-25, 50 and 99). Two plain buttons that
-//!    overlap (the two HelpButtons 2 px apart, "Solid view" and "starting a design") do not
+//!    overlap (the two `HelpButtons` 2 px apart, "Solid view" and "starting a design") do not
 //!    qualify: neither is a `TouchArea`, so they stay reported.
 //!
 //! 4. a control inside a floating layer against a control outside it or in another layer

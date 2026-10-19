@@ -17,8 +17,9 @@ reading the environment at that point is a data race. Several runs in one proces
 that rule.
 
 Contents: Quick start, Examples, Hooks, Isolation, Aborts, Checks, Report formats, Console
-output, Parallel runs, Coverage gate, Environment variables, Builder reference, Troubleshooting, Limits,
-Versions and the Slint pin, License.
+output, Parallel runs, Screenshots, Recording Videos (zoom camera and keystroke badges, filmed
+input, text guard and pacing, element targeting), Coverage gate, Environment variables, Builder
+reference, Troubleshooting, Limits, Versions and the Slint pin, License.
 
 ## Quick start
 
@@ -43,7 +44,7 @@ the smallest app; `examples/notes` is the full one (see Examples).
    slint-build = "=1.18.1"
 
    [dev-dependencies]
-   uiprobe = "=0.18.5"
+   uiprobe = "=0.18.8"
 
    [[test]]
    name = "ui"
@@ -233,8 +234,10 @@ is on stderr, the findings made so far on stdout only.
 | `scenario-panic` | a scenario panicked; it ended there |
 | `unexpected-file-dialog` | a native dialog opened with no queued answer |
 | `bad-chord` | `ctx.press` got a key chord it cannot parse |
-| `not-found` | a `WindowView::find*` query matched nothing (similar labels are listed) |
-| `ambiguous-label` | `WindowView::find` matched several elements |
+| `not-found` | a `WindowView::find*` or `spot_*` query matched nothing (similar labels are listed for `find*`) |
+| `ambiguous-label` | `WindowView::find` matched several elements, or a `spot_*` targeting query found several different visible controls |
+| `not-visible` | a `spot_*` targeting query found the element but less than 60 % of it shows (from `TargetError::finding`) |
+| `disabled` | a `spot_*` targeting query found the element but it is not enabled (`accessible-enabled: false`; from `TargetError::finding`) |
 | `coverage` | an uncovered UI action, or a stale allow-list entry |
 | `worker-crash` | a parallel-run worker process died during this scenario |
 | `config` | a bad environment variable, an unmatched UIPROBE_FILTER, a harness without scenarios, or a report file that could not be written or removed |
@@ -262,7 +265,7 @@ run wrote. The finding texts are the same in every format.
 
 ## Console output
 
-Every line starts with `uiprobe`. In order: the banner (`uiprobe 0.18.5 (Slint
+Every line starts with `uiprobe`. In order: the banner (`uiprobe 0.18.8 (Slint
 1.18.1): 7 of 7 scenario(s) selected, report dir ...`), the profile directory and the guarded
 paths, one `scenario <name>` line per scenario with its `-> N finding(s), M ms` and a `timing:`
 line (see Timing), the smoke counters, the coverage counters, the report files written, then `PASS, no findings` or `FAIL,
@@ -370,7 +373,7 @@ the limit: a GPU-heavy app is slowed by workers sharing one GPU, so cap them wit
 
 ## Screenshots
 
-With the `screenshots` feature (`uiprobe = { version = "=0.18.5", features =
+With the `screenshots` feature (`uiprobe = { version = "=0.18.8", features =
 ["screenshots"] }`) a harness can draw its windows with Slint's software renderer and save them as
 PNG, for example to keep the screenshots of a README or a website in step with the UI:
 
@@ -402,6 +405,133 @@ Harness::new()
   checks keep using the mock renderer. It draws only when `capture` asks, and there is no window
   frame or title bar in the picture. Pump (or `wait_until` the app's own threads) before a
   capture so layout, images and animations have settled.
+
+## Recording Videos
+
+With the `recording` feature (`uiprobe = { version = "=0.18.8", features = ["recording"] }`, which
+implies `screenshots`) a harness can play the app and write an MP4 with a drawn mouse cursor, click
+ripples, captions and YouTube chapters, for example to keep tutorial videos in step with the UI.
+It needs `Harness::renderer(Renderer::Software)`, an even physical window size and ffmpeg at run
+time (`ffmpeg` on `PATH`, or the full path in `UIPROBE_FFMPEG`).
+
+```rust
+use uiprobe::recording::{Recorder, RecorderOptions};
+
+screenshot::set_window_size(app.window(), (1920, 1080), 2.0); // 3840 x 2160 pixels
+pump(50);
+let mut rec = Recorder::start(app.window(), RecorderOptions {
+    output: "videos/demo.mp4".into(),
+    encode_size: Some((1920, 1080)), // scaled down while encoding
+    ..RecorderOptions::default()
+})?;
+rec.chapter("Intro");
+rec.caption("Press the button");
+rec.hold(Duration::from_secs(1))?;
+rec.move_to_element(&button, Duration::from_millis(700))?; // glide, then a hover event
+rec.click()?;                                              // ripple only, nothing is pressed
+// invoke the button's callback yourself, then keep filming:
+rec.hold(Duration::from_millis(400))?;
+let summary = rec.finish()?; // demo.mp4, demo.srt, demo.chapters.txt
+```
+
+- Video time and Slint's mock time run together in `hold`, `move_to`, `move_to_element` and the
+  zoom calls: every frame pumps one frame of mock time (33, 33, 34 ms at 30 fps), captures the
+  window, draws the cursor over a copy and pipes the frame to ffmpeg. `hold(1 s)` at 30 fps is
+  exactly 30 frames. Frames are never stored. The exception is the real-time waits (below).
+- `move_to` / `move_to_element` glide with ease-in-out and end with one real `PointerMoved`
+  event (`hover_events`), so hover styles show. `click` draws the ripple only: the action is
+  yours to invoke, so a video never fires twice.
+- Background work runs in real time. `wait_while_recording(timeout, speed, max_video, cond)` shows
+  it as a time-lapse of at most `max_video` and then cuts; `wait_cut` shows nothing.
+- `caption(text)` starts a cue at the current video time (empty text ends it), `chapter(title)`
+  adds a chapter; `finish` writes `<stem>.srt` and `<stem>.chapters.txt` (the first chapter is
+  forced to `0:00`).
+- The video is written as `<output>.part` and renamed by `finish`; `abandon` (or dropping the
+  recorder) kills ffmpeg and deletes the `.part`, so a failed run leaves the old video alone. An
+  ffmpeg failure is returned with the tail of its stderr.
+- `SinkKind::PngSequence(dir)` writes numbered PNGs instead (no ffmpeg); `SinkKind::Memory` keeps
+  the frames for self-tests (`Recorder::frames`). The timing labels `recording-capture` and
+  `recording-encode` show where a slow run spends its time.
+- Build `RecorderOptions` (and `CameraOptions`, `BadgeStyle`) with `..Default::default()`: fields
+  are added in patch releases (0.18.8 added four to `RecorderOptions`), so a literal that names
+  every field stops compiling.
+- The recorder borrows the window (`Recorder<'w>`): finish or abandon it before shutting the app
+  down, and do not resize the window while recording (a changed size is an error).
+
+### Zoom camera and keystroke badges
+
+Small controls are hard to read in a 1080p video of a 1920 x 1080 layout, so a virtual camera can
+zoom into the 4K capture (sharp: the crop is cut at the capture's resolution, then scaled to the
+frame size with a bicubic filter; the output size never changes):
+
+```rust
+rec.zoom_to((820.0, 300.0, 280.0, 60.0), Duration::from_millis(700))?; // x, y, w, h, logical
+rec.set_follow_cursor(true);        // a zoomed camera pans with move_to, the cursor stays in view
+rec.move_to_element(&field, Duration::from_millis(700))?;
+rec.press_keys(app.window(), "Ctrl+Up")?;   // real key events, and a "Ctrl + ↑" badge
+rec.zoom_out(Duration::from_millis(600))?;
+```
+
+- `zoom_to` shows the region padded by `CameraOptions::margin` (24 logical px), grown to the
+  frame's aspect ratio, limited to `CameraOptions::max_zoom` (2.0) and kept inside the window.
+  `camera()` returns the current rectangle. At zoom 1.0 nothing is resampled. The cursor and the
+  ripple are drawn in frame space and grow with the zoom (`scale_cursor: false` keeps them small).
+- `show_keys("Ctrl + ↑")` draws a keycap badge near the bottom of the frame, not zoomed, for
+  `BadgeStyle::visible_ms` (1400 ms, fading over the last 300 ms). Keys joined by ` + ` get a
+  keycap each. The text is rendered by Slint's software renderer with the system fonts.
+
+### Filmed input, text guard, pacing
+
+- `click_at(window, at, origin)`, `type_text`, `scroll_at` and `press_keys` are the filmed input
+  layer: each glides the cursor, shows the ripple or the badge and dispatches real Slint events to
+  the window. **That dispatch is the one activation**; do not also invoke the callback (the video
+  would fire it twice). `click()` stays ripple-only. `origin` is the position of an attached
+  window in the frame (`(0.0, 0.0)` for the main window).
+- `RecorderOptions::forbidden_texts` with `Recorder::set_text_source(Box::new(|| visible_texts))`
+  stops the recording (an `Err` naming the fragment) when a visible text contains a fragment,
+  case-insensitively; the half-written video is deleted. The texts are checked at the start and
+  the end of every call that emits frames and at most every 250 ms of video in between, so a
+  text that appears mid-hold can be in the frames (about 7 at 30 fps) before the next check, and
+  one that goes again within an interval can be missed. Fragments without a source fail closed.
+- `uiprobe::recording::pacing` has `reading_time`, `glide_duration`, `plain`, `wrap`, `cues`,
+  `word_count` and `wheel_steps` for screencast pacing and captions.
+- `wait_while_recording` and `wait_cut` pump the real time that passed (5 to 100 ms per poll), so
+  an app's timers and tick budgets run at their real speed.
+- `RecorderOptions::still_reuse_frames` (default 1 = off): still frames of a hold may reuse one
+  full render of the window; with 4 to 8 holds are several times faster (a 4K software render is
+  about 170 ms). The first frame of every call, recorder input, timers, animations and `refresh`
+  always render; a result an app thread posts during a still hold can show up late by at most that
+  many frames, because Slint's testing backend has no redraw signal. `captures()` and
+  `reused_frames()` count the renders; the timing labels are `recording-capture` and
+  `recording-reuse`.
+
+### Where to click: targeting
+
+`view.find("Save")` returns an element; for a *click at a position* (a recorded journey, a filmed
+tutorial) ask for a `Spot`:
+
+    let spot = view.spot_label("Save")?;          // Err(TargetError::Ambiguous { count: 2, .. }) if two visible controls say "Save"
+    let (x, y) = spot.click_point().expect("checked by the query");
+
+Inside a scenario `?` turns a `TargetError` into a `Finding` of window `-`; to name the window
+write `.map_err(|e| e.finding("MainWindow"))?`. `TargetError` is `#[non_exhaustive]`, so a
+`match` on it needs a wildcard arm.
+
+A `Spot` knows which scroll viewports and which window edge cut its element off. `click_point()`
+is the centre of the part that is visible, and the query is `NotVisible` when less than 60 % of
+the element shows (a row scrolled half out of a table is not clicked at its centre, which lies
+outside the viewport). Tell duplicates apart with
+`spot_role(AccessibleRole::TextInput, "Name")`, `spot_within("Dialog", "OK")` or
+`spot_label_near_y("Edit", row_y, row_height)`.
+
+To bring an element into view, plan the wheel turn and perform it where the viewer can see it:
+
+    if let Some((container, delta_y)) = uiprobe::targeting::scroll_into_view_plan(&spot) {
+        recorder.scroll_at(window, container.center(), delta_y)?;
+    }
+    // then query again: the container may stop short, an outer one may need its own turn
+
+A `Rectangle { clip: true }` cannot be detected; add it with `Spot::clipped_by`.
 
 ## Coverage gate
 
@@ -473,6 +603,7 @@ A parallel run carries all of these recorder sets from the workers to the coordi
 | `UIPROBE_JOBS_MAX` | worker cap for `auto` and a fixed count, at least 1; replaces `Harness::max_jobs`; default the number of cores, an invalid value is a `config` finding |
 | `UIPROBE_SEED` | `u64` for scenarios that randomise (`ctx.seed()`), default 0 |
 | `UIPROBE_ALLOW_FAIL` | any value: exit code 0 even with findings |
+| `UIPROBE_FFMPEG` | the ffmpeg executable of the `recording` feature (default `ffmpeg` on `PATH`) |
 | `SLINT_EMIT_DEBUG_INFO` | `1` at compile time: Slint debug info |
 
 Exit codes: 0 clean, 1 findings, 2 aborted (isolation could not be proven, no debug info).
@@ -591,8 +722,10 @@ Symptom, cause, fix. Aborts (exit code 2) print the same advice on stderr.
   metrics; give your fixtures `default-font-family: "FixedTestFont"` for exact geometry. For an
   app under test, compare counts on the same machine, and give a CI box its own baseline (or
   install a pinned font package).
-- **Scale factor is always 1.** Logical and physical pixels are the same; DPI problems are not
-  visible.
+- **Scale factor is 1** unless a screenshot or recording run sets it with
+  `screenshot::set_window_size` (a HiDPI picture). At 1 logical and physical pixels are the
+  same, so a run that does not call it cannot see DPI problems; the checks measure logical
+  pixels and are not a DPI test either way.
 - **One process.** The harness relaunches windows, not the process. `thread_local!` state in
   your app survives a relaunch; guard it with a `Weak` owner check, or a service stays bound to
   the first window.

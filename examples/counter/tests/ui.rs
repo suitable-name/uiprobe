@@ -5,8 +5,8 @@
 //! feature, as the README recipe does).
 
 use counter::Counter;
-use uiprobe::prelude::*;
 use std::process::ExitCode;
+use uiprobe::prelude::*;
 
 fn main() -> ExitCode {
     Harness::new()

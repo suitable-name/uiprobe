@@ -25,7 +25,7 @@ pub struct Scanned {
 }
 
 /// A blank of the same line structure: newlines stay, everything else becomes a space.
-fn blank(ch: char) -> char {
+const fn blank(ch: char) -> char {
     if ch == '\n' { '\n' } else { ' ' }
 }
 

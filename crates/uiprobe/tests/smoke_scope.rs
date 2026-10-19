@@ -240,15 +240,13 @@ fn finish(bad: &Mismatches, report: &Report) -> ExitCode {
         eprintln!("uiprobe self-test mismatch: {m}");
         ok = false;
     }
-    let expected: BTreeMap<&str, usize> = [("window-invalid", 1)].into_iter().collect();
+    let expected: BTreeMap<&str, usize> = BTreeMap::from([("window-invalid", 1)]);
     let mut got: BTreeMap<&str, usize> = BTreeMap::new();
     for f in report.findings() {
         *got.entry(f.check.as_str()).or_insert(0) += 1;
     }
     if got != expected {
-        eprintln!(
-            "uiprobe self-test mismatch: per-check counts {got:?}, expected {expected:?}"
-        );
+        eprintln!("uiprobe self-test mismatch: per-check counts {got:?}, expected {expected:?}");
         for f in report.findings() {
             eprintln!(
                 "    {} | {} | {} | {} | {}",

@@ -25,7 +25,7 @@ use crate::{
 
 /// An axis-aligned rectangle in window coordinates.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Rect {
+pub struct Rect {
     pub(crate) x: f32,
     pub(crate) y: f32,
     pub(crate) w: f32,
@@ -106,7 +106,7 @@ impl Rect {
 }
 
 /// One element with a role, with the part of it a user can see.
-pub(crate) struct Placed {
+pub struct Placed {
     pub(crate) control: Control,
     /// Document order index in [`WindowView::elements`] (drawing order: later is on top).
     pub(crate) index: usize,
@@ -121,7 +121,7 @@ pub(crate) struct Placed {
 }
 
 /// The elements of a window with their clipped geometry and layers.
-pub(crate) struct Scene {
+pub struct Scene {
     pub(crate) placed: Vec<Placed>,
 }
 
@@ -201,7 +201,7 @@ impl Scene {
 
 /// Whether the element roots a floating layer: its type name, or any base name, is in `layers`.
 /// For example, in Indicatrix: `Toast`, `PopupWindow`, `GuideOverlayLayer`, `ParametersPanel`.
-pub(crate) fn is_layer_root(handle: &ElementHandle, layers: &[String]) -> bool {
+pub fn is_layer_root(handle: &ElementHandle, layers: &[String]) -> bool {
     if layers.is_empty() {
         return false;
     }
@@ -214,7 +214,7 @@ pub(crate) fn is_layer_root(handle: &ElementHandle, layers: &[String]) -> bool {
 }
 
 /// Whether the element is a `Flickable` (the viewport inside every `ScrollView` / `ListView`).
-pub(crate) fn is_flickable(handle: &ElementHandle, type_name: &str) -> bool {
+pub fn is_flickable(handle: &ElementHandle, type_name: &str) -> bool {
     type_name == "Flickable"
         || handle
             .bases()
@@ -222,14 +222,14 @@ pub(crate) fn is_flickable(handle: &ElementHandle, type_name: &str) -> bool {
 }
 
 /// Whether the element has no accessible role (a pure event swallower, for example).
-pub(crate) fn has_no_role(handle: &ElementHandle) -> bool {
+pub fn has_no_role(handle: &ElementHandle) -> bool {
     handle
         .accessible_role()
         .is_none_or(|r| r == AccessibleRole::None)
 }
 
 /// How many elements lie below `handle` (the next N entries of the document-order list).
-pub(crate) fn descendant_count(handle: &ElementHandle) -> usize {
+pub fn descendant_count(handle: &ElementHandle) -> usize {
     let mut count = 0usize;
     let _ = handle.visit_descendants(|_| {
         count += 1;
@@ -240,7 +240,7 @@ pub(crate) fn descendant_count(handle: &ElementHandle) -> usize {
 
 /// A non-interactive element with a role, wrapped as a [`Control`] only to reuse its geometry
 /// and description. Reuses `Control::from_handle`'s fields without the interactive filter.
-pub(crate) fn role_element(handle: ElementHandle) -> Option<Control> {
+pub fn role_element(handle: ElementHandle) -> Option<Control> {
     let role = handle.accessible_role()?;
     if role == AccessibleRole::None {
         return None;

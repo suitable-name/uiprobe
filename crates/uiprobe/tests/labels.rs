@@ -4,7 +4,7 @@
 //! `missing-label`; a `LineEdit` with a placeholder text has a label (the placeholder counts)
 //! and adds none. The finding is checked to belong to the `TextInput` (the rect at y=10).
 //!
-//! `find("Name")` then finds the LineEdit through its placeholder (no label matches), and
+//! `find("Name")` then finds the `LineEdit` through its placeholder (no label matches), and
 //! `find("Nope")` is still a miss.
 //!
 //! Needs Slint debug info at compile time (`SLINT_EMIT_DEBUG_INFO=1`, set by this workspace's
@@ -71,16 +71,17 @@ fn main() -> ExitCode {
     let sink = Rc::clone(&bad);
     let report = harness
         .scenario("missing label", move |ctx| {
-            let app = ctx.launch(|| Fixture::new())?;
+            let app = ctx.launch(Fixture::new)?;
             let findings = sweep(&app.view(), ctx.sweep_options());
             let hits: Vec<&Finding> = findings
                 .iter()
                 .filter(|f| f.check == "missing-label")
                 .collect();
             if hits.len() != 1 {
+                use std::fmt::Write as _;
                 let mut text = format!("missing-label: expected 1, got {}", hits.len());
                 for f in &hits {
-                    text.push_str(&format!("\n    {} | {} | {}", f.window, f.element, f.detail));
+                    let _ = write!(text, "\n    {} | {} | {}", f.window, f.element, f.detail);
                 }
                 sink.borrow_mut().push(text);
             } else if !hits[0].detail.contains("y=10 ") {

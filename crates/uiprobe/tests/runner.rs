@@ -64,10 +64,10 @@ fn report_dir_for(mode: &str) -> PathBuf {
 }
 
 fn main() -> ExitCode {
-    match std::env::var(CHILD_FLAG).ok().as_deref() {
-        Some(mode) => child(mode),
-        None => parent(),
-    }
+    std::env::var(CHILD_FLAG)
+        .ok()
+        .as_deref()
+        .map_or_else(parent, child)
 }
 
 /// The child: one harness run per mode; the exit code is the harness's own.
@@ -227,8 +227,7 @@ fn child_checks(mismatches: &mut Vec<String>) {
         mismatches.push("child formats: the stale report.md was not removed".to_owned());
     }
     match fs::read_to_string(dir.join("report.html")) {
-        Ok(html)
-            if html.starts_with("<!doctype html>") && html.contains("uiprobe report") => {}
+        Ok(html) if html.starts_with("<!doctype html>") && html.contains("uiprobe report") => {}
         Ok(html) => mismatches.push(format!(
             "child formats: report.html is not the page: {html}"
         )),
@@ -272,7 +271,7 @@ fn in_process_checks(mismatches: &mut Vec<String>) {
     let continued_flag = Rc::clone(&continued);
     let teardown_flag = Rc::clone(&torn_down);
     let report = Harness::new()
-        .report_dir(dir.clone())
+        .report_dir(dir)
         .formats([Format::Markdown, Format::Text])
         .scenario("empty window", |ctx| {
             let _app = ctx.launch(Empty::new)?;

@@ -26,8 +26,8 @@
 
 use serde_json::Value;
 use slint::ComponentHandle;
-use uiprobe::{prelude::*, profile::request_abort};
 use std::{fs, path::PathBuf, process::Command, time::Duration};
+use uiprobe::{prelude::*, profile::request_abort};
 
 slint::slint! {
     import { Button } from "std-widgets.slint";
@@ -180,10 +180,10 @@ fn lasting(mode: &str, jobs: Jobs) -> Harness {
 }
 
 fn main() -> ExitCode {
-    match std::env::var(CHILD_FLAG).ok().as_deref() {
-        Some(mode) => child(mode),
-        None => parent(),
-    }
+    std::env::var(CHILD_FLAG)
+        .ok()
+        .as_deref()
+        .map_or_else(parent, child)
 }
 
 /// The child: one harness run per mode; the exit code is the harness's own.
@@ -369,14 +369,13 @@ fn console_checks(stdout: &str, mismatches: &mut Vec<String>) {
     let mut last = 0;
     for name in names {
         let line = format!("uiprobe: scenario {name}\n");
-        match stdout[last..].find(&line) {
-            Some(at) => last += at + line.len(),
-            None => {
-                mismatches.push(format!(
-                    "fixed3: scenario {name} is missing or out of order"
-                ));
-                return;
-            }
+        if let Some(at) = stdout[last..].find(&line) {
+            last += at + line.len();
+        } else {
+            mismatches.push(format!(
+                "fixed3: scenario {name} is missing or out of order"
+            ));
+            return;
         }
     }
 }

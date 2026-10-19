@@ -173,10 +173,11 @@ pub fn record_wrappers(root: &ElementHandle, pressed: &ElementHandle, touched: b
         let other = element.size();
         if (other.width - size.width).abs() < 0.6 && (other.height - size.height).abs() < 0.6 {
             let at = element.absolute_position();
-            if (at.x - position.x).abs() < 0.6 && (at.y - position.y).abs() < 0.6 {
-                if let Some(id) = element.id() {
-                    found.push(normalise_id(&id));
-                }
+            if (at.x - position.x).abs() < 0.6
+                && (at.y - position.y).abs() < 0.6
+                && let Some(id) = element.id()
+            {
+                found.push(normalise_id(&id));
             }
         }
         std::ops::ControlFlow::Continue(())
@@ -191,10 +192,13 @@ pub fn record_wrappers(root: &ElementHandle, pressed: &ElementHandle, touched: b
     }
 }
 
-/// Records that the element `Component::id` (the id of an instantiation site, for example, in
-/// Indicatrix, `PreformTab::tip-button-preform-pending`) was pressed by a scenario that found
-/// the button by its label and saw it act. For a wrapper site whose pressed element reports the
-/// inner widget's id, not the site's, so the id rule of the gate cannot see the press by itself.
+/// Records that the element `Component::id` was pressed by a scenario that found the button by
+/// its label and saw it act.
+///
+/// `Component::id` is the id of an instantiation site (in Indicatrix, for example,
+/// `PreformTab::tip-button-preform-pending`). Needed for a wrapper site whose pressed element
+/// reports the inner widget's id, not the site's: the id rule of the gate cannot see the press by
+/// itself.
 pub fn record_site_id(id: &str) {
     recorder().activated_ids.insert(normalise_id(id));
 }

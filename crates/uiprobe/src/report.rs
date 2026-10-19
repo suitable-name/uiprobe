@@ -185,7 +185,7 @@ impl Report {
     /// Marks the start of a scenario (name, start time); [`Report::end_scenario`] records how
     /// many findings it made and how long it took.
     pub fn begin_scenario(&mut self, name: &str) {
-        self.context = name.to_owned();
+        name.clone_into(&mut self.context);
         self.current_scenario_start = self.findings.len();
         self.current_scenario_began = Some(Instant::now());
         println!("uiprobe: scenario {name}");
@@ -290,13 +290,13 @@ impl Report {
 
     /// Number of distinct findings.
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.findings.len()
     }
 
     /// Whether nothing was found.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.findings.is_empty()
     }
 
@@ -562,8 +562,7 @@ mod tests {
 
     #[test]
     fn finish_writes_the_selected_formats_and_removes_the_others() {
-        let dir =
-            std::env::temp_dir().join(format!("uiprobe-formats-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("uiprobe-formats-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("the report dir is created");
         fs::write(dir.join("report.md"), "stale").expect("the stale file is written");

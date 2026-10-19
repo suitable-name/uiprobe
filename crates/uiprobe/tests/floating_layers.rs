@@ -80,16 +80,14 @@ fn overlaps(findings: &[Finding]) -> Vec<&Finding> {
 }
 
 fn expect_overlaps(bad: &Mismatches, what: &str, findings: &[Finding], want: usize) -> bool {
+    use std::fmt::Write as _;
     let hits = overlaps(findings);
     if hits.len() == want {
         return true;
     }
     let mut text = format!("{what}: overlap: expected {want}, got {}", hits.len());
     for f in hits {
-        text.push_str(&format!(
-            "\n    {} | {} | {}",
-            f.window, f.element, f.detail
-        ));
+        let _ = write!(text, "\n    {} | {} | {}", f.window, f.element, f.detail);
     }
     bad.borrow_mut().push(text);
     false
@@ -131,7 +129,7 @@ fn main() -> ExitCode {
                 sink.borrow_mut()
                     .push("default floating_layers is not [\"PopupWindow\"]".to_owned());
             }
-            let app = ctx.launch(|| LayerFixture::new())?;
+            let app = ctx.launch(LayerFixture::new)?;
             let view = app.view();
             let default = sweep(&view, &SweepOptions::default());
             expect_overlaps(&sink, "default list", &default, 2);

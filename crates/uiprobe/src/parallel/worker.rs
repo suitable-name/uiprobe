@@ -25,7 +25,7 @@ use std::{
 };
 
 /// What `Harness::run_to_report` hands over when this process is the worker.
-pub(crate) struct WorkerSetup {
+pub struct WorkerSetup {
     pub(crate) report_dir: PathBuf,
     pub(crate) sizes: Vec<(u32, u32)>,
     pub(crate) profile: Option<Profile>,
@@ -45,7 +45,7 @@ enum Step {
 
 /// Serves the coordinator until it says quit, then ends the process: exit code 0 after a clean
 /// quit, 2 after an abort (the profile is deleted first in both cases).
-pub(crate) fn run_worker(setup: WorkerSetup) -> ! {
+pub fn run_worker(setup: WorkerSetup) -> ! {
     let WorkerSetup {
         report_dir,
         sizes,

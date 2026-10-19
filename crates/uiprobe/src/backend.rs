@@ -36,8 +36,9 @@ const PLATFORM_ALREADY_SET: &str = "the Slint platform was already set before th
      keep the backend choice in the binary's main, not in the window constructor the scenarios \
      launch";
 
-/// Installs the testing backend with mock time and the mock renderer, before any window exists;
-/// the runner calls it after the profile is in place. Slint accepts one platform per process,
+/// Installs the testing backend with mock time and the mock renderer, before any window exists.
+///
+/// The runner calls it after the profile is in place. Slint accepts one platform per process,
 /// so later calls (a second `Harness::run` in the same process, as the self-tests do) do
 /// nothing.
 ///
@@ -89,8 +90,9 @@ fn install(renderer: Renderer) -> Result<(), String> {
 }
 
 /// Advances mock time by `ms` (firing due timers and animations) and then runs every event the
-/// app's threads have queued so far. The real time it takes is recorded under the timing label
-/// `pump` (see [`crate::timing`]).
+/// app's threads have queued so far.
+///
+/// The real time it takes is recorded under the timing label `pump` (see [`crate::timing`]).
 pub fn pump(ms: u64) {
     let start = Instant::now();
     pump_unrecorded(ms);
@@ -113,8 +115,10 @@ pub fn drain_events() {
 }
 
 /// Pumps (10 ms of mock time, then a short real-time sleep so worker threads get to run) until
-/// `condition` holds or `timeout` of real time has passed. Returns whether it held. The call is
-/// recorded under the timing label `wait`, as a timeout sample when it gave up.
+/// `condition` holds or `timeout` of real time has passed.
+///
+/// Returns whether it held. The call is recorded under the timing label `wait`, as a timeout
+/// sample when it gave up.
 pub fn wait_until(timeout: Duration, condition: impl FnMut() -> bool) -> bool {
     wait_until_labeled("wait", timeout, condition)
 }
@@ -152,9 +156,11 @@ pub fn settle(real_ms: u64) {
 }
 
 /// Returns the explanation, with the three ways to switch debug info on, when the Slint build
-/// carries no element debug info (then the accessibility tree cannot be walked and every query
-/// would silently return nothing). The testing backend reports no type name for any element
-/// without debug info, while with it the root always has one, even in an empty window.
+/// carries no element debug info.
+///
+/// Without it the accessibility tree cannot be walked and every query would silently return
+/// nothing. The testing backend reports no type name for any element without debug info, while
+/// with it the root always has one, even in an empty window.
 ///
 /// # Errors
 ///

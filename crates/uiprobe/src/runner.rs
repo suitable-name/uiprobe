@@ -17,7 +17,7 @@
 mod jobs;
 
 pub use jobs::Jobs;
-pub(crate) use jobs::Plan;
+pub use jobs::Plan;
 
 use crate::{
     Ctx,
@@ -38,14 +38,14 @@ use std::{
 };
 
 /// One named scenario.
-pub(crate) type ScenarioFn = Box<dyn FnMut(&mut Ctx<'_>) -> Result<(), Finding>>;
+pub type ScenarioFn = Box<dyn FnMut(&mut Ctx<'_>) -> Result<(), Finding>>;
 
 /// How many times `run_to_report` has been called in this process: the index a parallel
 /// coordinator gives its workers, so a `main` with several harnesses runs the right one.
 static RUN_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// What one scenario step needs besides the scenario and the report.
-pub(crate) struct StepEnv<'a> {
+pub struct StepEnv<'a> {
     pub(crate) profile: &'a ProfileDir,
     pub(crate) sizes: &'a [(u32, u32)],
     pub(crate) sweep_options: &'a SweepOptions,
@@ -56,7 +56,7 @@ pub(crate) struct StepEnv<'a> {
 /// `scenario-panic` finding), the end-of-scenario health check, end. Returns the abort request
 /// the scenario (or the harness) made, if any; the caller tears down and ends the process. The
 /// serial loop and the parallel worker both call this, so the two cannot drift apart.
-pub(crate) fn run_scenario(
+pub fn run_scenario(
     name: &str,
     run: &mut ScenarioFn,
     report: &mut Report,
@@ -96,7 +96,7 @@ pub(crate) fn run_scenario(
 }
 
 /// `UIPROBE_SEED` as a number (0 when unset or invalid).
-pub(crate) fn resolve_seed() -> u64 {
+pub fn resolve_seed() -> u64 {
     std::env::var("UIPROBE_SEED")
         .ok()
         .and_then(|text| text.trim().parse::<u64>().ok())
@@ -329,13 +329,11 @@ impl Harness {
         scenarios.extend(last_scenarios);
         let (env_filters, arg_filters) = scenario_filters();
         let filters: Vec<String> = env_filters.iter().chain(&arg_filters).cloned().collect();
-        let selected = scenarios
-            .iter()
-            .filter(|(name, _)| {
-                filters.is_empty() || filters.iter().any(|f| name.contains(f.as_str()))
-            })
-            .count();
         let names: Vec<String> = scenarios.iter().map(|(name, _)| name.clone()).collect();
+        let chosen: Vec<usize> = (0..names.len())
+            .filter(|&index| passes(&names[index], &filters))
+            .collect();
+        let selected = chosen.len();
         // The report directory is resolved against the working directory the run starts in
         // (the profile moves it below) and printed first, so the user knows where to look
         // even when the run aborts later.
@@ -372,14 +370,6 @@ impl Harness {
         let (jobs, max_jobs) = jobs::resolve(jobs, max_jobs, &mut report);
         config_findings(&mut report, &env_filters, selected, &names);
         if let Some(plan) = jobs::plan(jobs, max_jobs, selected) {
-            let chosen: Vec<usize> = names
-                .iter()
-                .enumerate()
-                .filter(|(_, name)| {
-                    filters.is_empty() || filters.iter().any(|f| name.contains(f.as_str()))
-                })
-                .map(|(index, _)| index)
-                .collect();
             return parallel::coordinate(CoordinatorSetup {
                 report,
                 run_index,
@@ -404,23 +394,18 @@ impl Harness {
         let seed = resolve_seed();
 
         // 3. Scenarios.
-        for (name, run) in &mut scenarios {
-            if !filters.is_empty() && !filters.iter().any(|f| name.contains(f.as_str())) {
-                continue;
+        let env = StepEnv {
+            profile: &profile,
+            sizes: &sizes,
+            sweep_options: &sweep_options,
+            seed,
+        };
+        if let Some(message) = run_selected(&mut scenarios, &filters, &env, &mut report) {
+            if let Some(teardown) = teardown.take() {
+                teardown();
             }
-            let env = StepEnv {
-                profile: &profile,
-                sizes: &sizes,
-                sweep_options: &sweep_options,
-                seed,
-            };
-            if let Some(message) = run_scenario(name, run, &mut report, &env) {
-                if let Some(teardown) = teardown.take() {
-                    teardown();
-                }
-                profile.finish();
-                crate::profile::abort_run(&message);
-            }
+            profile.finish();
+            crate::profile::abort_run(&message);
         }
 
         // 4. Coverage gate, teardown and report.
@@ -441,6 +426,25 @@ impl Default for Harness {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Runs the scenarios that pass `filters`, in order. Stops at the first one that asks for an
+/// abort and returns its message.
+fn run_selected(
+    scenarios: &mut [(String, ScenarioFn)],
+    filters: &[String],
+    env: &StepEnv<'_>,
+    report: &mut Report,
+) -> Option<String> {
+    scenarios
+        .iter_mut()
+        .filter(|(name, _)| passes(name, filters))
+        .find_map(|(name, run)| run_scenario(name, run, report, env))
+}
+
+/// Whether the scenario `name` passes the filters (without filters every scenario does).
+fn passes(name: &str, filters: &[String]) -> bool {
+    filters.is_empty() || filters.iter().any(|filter| name.contains(filter.as_str()))
 }
 
 /// The first line of every run: harness and Slint versions, how many scenarios the filters
@@ -574,7 +578,7 @@ fn target_of_exe(exe: &Path) -> Option<PathBuf> {
 
 /// The window sizes of the run: `UIPROBE_SIZES` (`WxH,WxH`) when set and valid, else
 /// `configured`. Invalid text is a `config` finding and the configured list is kept.
-pub(crate) fn resolve_sizes(configured: Vec<(u32, u32)>, report: &mut Report) -> Vec<(u32, u32)> {
+pub fn resolve_sizes(configured: Vec<(u32, u32)>, report: &mut Report) -> Vec<(u32, u32)> {
     let Ok(text) = std::env::var("UIPROBE_SIZES") else {
         return configured;
     };
@@ -757,10 +761,8 @@ mod tests {
     /// three-parents rule would miss here (it lands in `custom/`).
     #[test]
     fn target_dir_follows_the_cachedir_tag() {
-        let root = std::env::temp_dir().join(format!(
-            "uiprobe-unit-cachedir-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("uiprobe-unit-cachedir-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let target = root.join("target");
         let out = target.join("custom").join("runner").join("a").join("b");

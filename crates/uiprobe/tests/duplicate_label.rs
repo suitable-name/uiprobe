@@ -6,8 +6,8 @@
 //! Assertions are made here and printed on a mismatch; they are not added to the report, which
 //! must stay at zero findings.
 
-use uiprobe::prelude::*;
 use std::{cell::RefCell, process::ExitCode, rc::Rc};
+use uiprobe::prelude::*;
 
 slint::slint! {
     import { Button } from "std-widgets.slint";

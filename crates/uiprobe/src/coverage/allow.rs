@@ -48,7 +48,7 @@ fn matches(entry: &str, key: &str) -> bool {
 
 /// In-code and file allow entries, in that order.
 #[derive(Debug, Default)]
-pub(crate) struct AllowList {
+pub struct AllowList {
     entries: Vec<(String, String)>,
 }
 

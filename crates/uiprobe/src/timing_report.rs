@@ -16,28 +16,28 @@ const SLOWEST: usize = 15;
 const TOP_LABELS: usize = 3;
 
 /// A scenario row: name, wall time, the biggest labels as `label time, ...`.
-pub(crate) struct ScenarioRow {
+pub struct ScenarioRow {
     pub(crate) name: String,
     pub(crate) time: String,
     pub(crate) top: String,
 }
 
 /// A label row: label, total time, samples.
-pub(crate) struct LabelRow {
+pub struct LabelRow {
     pub(crate) label: String,
     pub(crate) time: String,
     pub(crate) count: u64,
 }
 
 /// A timeout row: label, how many samples gave up, the time those took.
-pub(crate) struct TimeoutRow {
+pub struct TimeoutRow {
     pub(crate) label: String,
     pub(crate) count: u64,
     pub(crate) time: String,
 }
 
 /// Everything the three renderers show.
-pub(crate) struct Summary {
+pub struct Summary {
     pub(crate) scenarios: Vec<ScenarioRow>,
     pub(crate) labels: Vec<LabelRow>,
     pub(crate) timeouts: Vec<TimeoutRow>,
@@ -50,7 +50,7 @@ const fn ms_to_us(ms: u64) -> u64 {
 }
 
 /// Busy percentage: scenario time over `workers x wall`, 0 when there is nothing to divide by.
-pub(crate) fn utilisation_percent(scenario_ms: u64, workers: usize, wall_ms: u64) -> u64 {
+pub fn utilisation_percent(scenario_ms: u64, workers: usize, wall_ms: u64) -> u64 {
     let capacity = u128::from(u64::try_from(workers).unwrap_or(u64::MAX)) * u128::from(wall_ms);
     if capacity == 0 {
         return 0;
@@ -59,12 +59,12 @@ pub(crate) fn utilisation_percent(scenario_ms: u64, workers: usize, wall_ms: u64
 }
 
 /// The rows of the section, or `None` when the report has no scenarios.
-pub(crate) fn summarize(report: &Report) -> Option<Summary> {
+pub fn summarize(report: &Report) -> Option<Summary> {
     if report.scenarios.is_empty() {
         return None;
     }
     let mut ordered: Vec<&crate::report::ScenarioRecord> = report.scenarios.iter().collect();
-    ordered.sort_by(|a, b| b.duration_ms.cmp(&a.duration_ms));
+    ordered.sort_by_key(|record| std::cmp::Reverse(record.duration_ms));
     let scenarios = ordered
         .into_iter()
         .take(SLOWEST)
@@ -132,7 +132,7 @@ fn totals(report: &Report) -> Table {
 }
 
 /// The `timing` object of `report.json`: totals per label and the parallel numbers (or null).
-pub(crate) fn json(report: &Report) -> Value {
+pub fn json(report: &Report) -> Value {
     let parallel = report.parallel.as_ref().map(|stats| {
         let scenario_ms: u64 = report.scenarios.iter().map(|s| s.duration_ms).sum();
         json!({
@@ -150,7 +150,7 @@ pub(crate) fn json(report: &Report) -> Value {
 }
 
 /// Appends the Markdown "Timing" section.
-pub(crate) fn markdown(report: &Report, out: &mut String) {
+pub fn markdown(report: &Report, out: &mut String) {
     let Some(summary) = summarize(report) else {
         return;
     };
@@ -189,7 +189,7 @@ pub(crate) fn markdown(report: &Report, out: &mut String) {
 }
 
 /// Appends the plain-text "Timing" section.
-pub(crate) fn text(report: &Report, out: &mut String) {
+pub fn text(report: &Report, out: &mut String) {
     let Some(summary) = summarize(report) else {
         return;
     };
@@ -226,7 +226,7 @@ pub(crate) fn text(report: &Report, out: &mut String) {
 }
 
 /// Appends the HTML "Timing" section; `escape` is the page's escaper.
-pub(crate) fn html(report: &Report, out: &mut String, escape: fn(&str) -> String) {
+pub fn html(report: &Report, out: &mut String, escape: fn(&str) -> String) {
     let Some(summary) = summarize(report) else {
         return;
     };
@@ -339,7 +339,7 @@ mod tests {
     fn no_scenarios_no_section() {
         let mut out = String::new();
         markdown(&Report::new("unused"), &mut out);
-        assert!(out.is_empty());
+        assert_eq!(out, "");
     }
 
     #[test]

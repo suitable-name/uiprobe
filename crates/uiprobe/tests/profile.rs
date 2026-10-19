@@ -17,7 +17,6 @@
 //! The parent starts no thread before `Harness::run` redirects the environment (spawning and
 //! waiting for the child uses none), which is what the profile requires.
 
-use uiprobe::prelude::*;
 use std::{
     cell::{Cell, RefCell},
     fs,
@@ -25,6 +24,7 @@ use std::{
     process::{Command, ExitCode},
     rc::Rc,
 };
+use uiprobe::prelude::*;
 
 slint::slint! {
     export component Probe inherits Window {

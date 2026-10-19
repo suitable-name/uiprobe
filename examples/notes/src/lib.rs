@@ -148,11 +148,12 @@ fn show_notice(window: &NotesWindow, kind: &str, text: &str) {
     window.set_notice_text(text.into());
 }
 
-/// Where the settings file lives. Under the harness feature the harness's throw-away data
-/// directory comes first, because a lookup through the OS (Windows Known Folders) ignores the
-/// environment the harness redirects; the fallback is the environment lookup below. The test
-/// hands this path to `Profile::guard_paths`, so a run aborts if it ever resolves outside the
-/// profile.
+/// Where the settings file lives.
+///
+/// Under the harness feature the harness's throw-away data directory comes first, because a
+/// lookup through the OS (Windows Known Folders) ignores the environment the harness redirects;
+/// the fallback is the environment lookup below. The test hands this path to
+/// `Profile::guard_paths`, so a run aborts if it ever resolves outside the profile.
 #[must_use]
 pub fn settings_path() -> PathBuf {
     #[cfg(feature = "ui-harness")]

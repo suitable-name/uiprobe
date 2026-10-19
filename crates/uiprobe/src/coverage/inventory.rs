@@ -127,7 +127,7 @@ impl ElementItem {
 
     /// Whether the run can ever recognise this element.
     #[must_use]
-    pub fn trackable(&self) -> bool {
+    pub const fn trackable(&self) -> bool {
         self.id.is_some() || matches!(self.label, Label::Literal(_))
     }
 
@@ -605,10 +605,9 @@ fn label_property(label: Option<&Label>) -> (Option<String>, bool) {
         .find(|want| found.contains(want))
         .copied()
         .or_else(|| found.first().copied());
-    match prop {
-        Some(prop) => (Some(prop.to_owned()), expr.trim() != format!("root.{prop}")),
-        None => (None, true),
-    }
+    prop.map_or((None, true), |prop| {
+        (Some(prop.to_owned()), expr.trim() != format!("root.{prop}"))
+    })
 }
 
 /// Builds the interactive types from pass 1: std widgets, components with an interactive root,
@@ -680,11 +679,11 @@ fn type_table(pass1: &Inventory) -> TypeTable {
             let Some(base) = base else {
                 continue;
             };
-            if !types.contains_key(name) {
-                if let Some(info) = types.get(base).cloned() {
-                    types.insert(name.clone(), info);
-                    changed = true;
-                }
+            if !types.contains_key(name)
+                && let Some(info) = types.get(base).cloned()
+            {
+                types.insert(name.clone(), info);
+                changed = true;
             }
         }
         if !changed {

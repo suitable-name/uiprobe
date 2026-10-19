@@ -80,8 +80,10 @@ pub fn abort_run(message: &str) -> ! {
 
 static ABORT_REQUEST: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
-/// Ends the run after the current scenario with exit code 2: the teardown runs, the profile
-/// is deleted, the environment is restored, then `message` is printed. For conditions that
+/// Ends the run after the current scenario with exit code 2.
+///
+/// The teardown runs, the profile is deleted, the environment is restored, then `message` is
+/// printed. For conditions that
 /// make the rest of the run meaningless; the harness itself uses it when the UI carries no
 /// Slint debug info. No report file is written for an aborted run; the cause is on stderr and
 /// the findings made so far are on stdout only.
@@ -321,6 +323,10 @@ impl ProfileDir {
 
     /// Deletes the directory `dir` and everything below it, but only when it lies inside the
     /// profile and is not the profile root itself. Returns whether it was deleted.
+    #[expect(
+        clippy::must_use_candidate,
+        reason = "deleting is the point; the flag is informational and callers may ignore it"
+    )]
     pub fn wipe_dir(&self, dir: &Path) -> bool {
         if !self.contains(dir) || self.is_root(dir) {
             return false;
@@ -341,6 +347,10 @@ impl ProfileDir {
     }
 
     /// Deletes the file `path` when it lies inside the profile. Returns whether it was deleted.
+    #[expect(
+        clippy::must_use_candidate,
+        reason = "deleting is the point; the flag is informational and callers may ignore it"
+    )]
     pub fn wipe_file(&self, path: &Path) -> bool {
         if !self.contains(path) {
             return false;

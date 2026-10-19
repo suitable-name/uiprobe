@@ -17,7 +17,7 @@
 
 /// The configured extra label property names.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct LabelProps {
+pub struct LabelProps {
     /// Extra names read as labels (`Coverage::label_props`).
     pub(crate) extra: Vec<String>,
     /// Names whose literal beats `text` on non-std wrapper sites (`Coverage::reader_props`).

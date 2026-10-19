@@ -25,11 +25,11 @@
 //! workspace `.cargo/config.toml`.
 
 use slint::ComponentHandle;
+use std::process::ExitCode;
 use uiprobe::{
     coverage::{arm_gate, record_callback},
     prelude::{Coverage, Ctx, Finding, GateRule, Harness, Report},
 };
-use std::process::ExitCode;
 
 slint::slint! {
     import { Button } from "std-widgets.slint";

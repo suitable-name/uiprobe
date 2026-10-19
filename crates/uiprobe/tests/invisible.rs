@@ -54,12 +54,10 @@ type Mismatches = Rc<RefCell<Vec<String>>>;
 fn expect_count(bad: &Mismatches, findings: &[Finding], check: &str, want: usize) {
     let hits: Vec<&Finding> = findings.iter().filter(|f| f.check == check).collect();
     if hits.len() != want {
+        use std::fmt::Write as _;
         let mut text = format!("{check}: expected {want}, got {}", hits.len());
         for f in hits {
-            text.push_str(&format!(
-                "\n    {} | {} | {}",
-                f.window, f.element, f.detail
-            ));
+            let _ = write!(text, "\n    {} | {} | {}", f.window, f.element, f.detail);
         }
         bad.borrow_mut().push(text);
     }
@@ -91,7 +89,7 @@ fn main() -> ExitCode {
     let sink = Rc::clone(&bad);
     let report = harness
         .scenario("invisible but enabled", move |ctx| {
-            let app = ctx.launch(|| Fixture::new())?;
+            let app = ctx.launch(Fixture::new)?;
             let findings = sweep(&app.view(), ctx.sweep_options());
             // Two ghosts: the one over "Visible" and the one outside the window.
             expect_count(&sink, &findings, "invisible-but-enabled", 2);

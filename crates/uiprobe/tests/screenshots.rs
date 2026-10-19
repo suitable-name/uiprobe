@@ -121,7 +121,7 @@ fn main() -> ExitCode {
     let report = Harness::new()
         .renderer(Renderer::Software)
         .scenario("screenshots", move |ctx| {
-            let app = ctx.launch(|| ShotFixture::new())?;
+            let app = ctx.launch(ShotFixture::new)?;
             pump(20);
 
             match screenshot::capture(app.window()) {
