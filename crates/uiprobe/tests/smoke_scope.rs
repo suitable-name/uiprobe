@@ -29,6 +29,7 @@ use uiprobe::{
 };
 
 slint::slint! {
+    #[edition = "1.19"]
     import { Button } from "std-widgets.slint";
 
     export component AdmitFixture inherits Window {

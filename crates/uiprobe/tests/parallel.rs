@@ -30,6 +30,7 @@ use std::{fs, path::PathBuf, process::Command, time::Duration};
 use uiprobe::{prelude::*, profile::request_abort};
 
 slint::slint! {
+    #[edition = "1.19"]
     import { Button } from "std-widgets.slint";
 
     export global Model {

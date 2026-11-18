@@ -37,14 +37,14 @@ the smallest app; `examples/notes` is the full one (see Examples).
    ui-harness = ["dep:uiprobe-hooks"]
 
    [dependencies]
-   slint = "=1.18.1"
+   slint = "=1.19.0"
    uiprobe-hooks = { version = "0.1", optional = true }
 
    [build-dependencies]
-   slint-build = "=1.18.1"
+   slint-build = "=1.19.0"
 
    [dev-dependencies]
-   uiprobe = "=0.18.8"
+   uiprobe = "=0.19.0"
 
    [[test]]
    name = "ui"
@@ -62,7 +62,7 @@ the smallest app; `examples/notes` is the full one (see Examples).
 
    ```rust
    fn main() {
-       let mut config = slint_build::CompilerConfiguration::new();
+       let mut config = slint_build::CompilerConfiguration::new().with_edition((1, 19));
        if std::env::var_os("CARGO_FEATURE_UI_HARNESS").is_some() {
            config = config.with_debug_info(true);
        }
@@ -265,8 +265,8 @@ run wrote. The finding texts are the same in every format.
 
 ## Console output
 
-Every line starts with `uiprobe`. In order: the banner (`uiprobe 0.18.8 (Slint
-1.18.1): 7 of 7 scenario(s) selected, report dir ...`), the profile directory and the guarded
+Every line starts with `uiprobe`. In order: the banner (`uiprobe 0.19.0 (Slint
+1.19.0): 7 of 7 scenario(s) selected, report dir ...`), the profile directory and the guarded
 paths, one `scenario <name>` line per scenario with its `-> N finding(s), M ms` and a `timing:`
 line (see Timing), the smoke counters, the coverage counters, the report files written, then `PASS, no findings` or `FAIL,
 N finding(s):` with the per-check counts and up to 25 findings as `[window] check: element --
@@ -373,7 +373,7 @@ the limit: a GPU-heavy app is slowed by workers sharing one GPU, so cap them wit
 
 ## Screenshots
 
-With the `screenshots` feature (`uiprobe = { version = "=0.18.8", features =
+With the `screenshots` feature (`uiprobe = { version = "=0.19.0", features =
 ["screenshots"] }`) a harness can draw its windows with Slint's software renderer and save them as
 PNG, for example to keep the screenshots of a README or a website in step with the UI:
 
@@ -408,7 +408,7 @@ Harness::new()
 
 ## Recording Videos
 
-With the `recording` feature (`uiprobe = { version = "=0.18.8", features = ["recording"] }`, which
+With the `recording` feature (`uiprobe = { version = "=0.19.0", features = ["recording"] }`, which
 implies `screenshots`) a harness can play the app and write an MP4 with a drawn mouse cursor, click
 ripples, captions and YouTube chapters, for example to keep tutorial videos in step with the UI.
 It needs `Harness::renderer(Renderer::Software)`, an even physical window size and ffmpeg at run
@@ -707,9 +707,8 @@ Symptom, cause, fix. Aborts (exit code 2) print the same advice on stderr.
   with the system fonts. Give fixtures `default-font-family: "FixedTestFont"` (fixed metrics
   everywhere); for a real app compare counts on one machine and give a CI box its own baseline
   or a pinned font package.
-- **`cargo` fails with `failed to select a version for slint` after adding the harness.** The
-  exact Slint pin (Versions and the Slint pin): pin `slint = "=1.18.1"` in your app, or use the
-  harness release for your Slint line.
+- **`cargo` fails with `failed to select a version for slint` after adding the harness.** Pin
+  `slint = "=1.19.0"` in your app, or use the harness release for your exact Slint version.
 - **The report landed somewhere unexpected.** Run through `cargo test` (it sets
   `CARGO_TARGET_TMPDIR` and `CARGO_PKG_NAME`, from which `<target>/uiprobe/<package>`
   is derived) or set `Harness::report_dir` explicitly; the first console line always prints
@@ -743,22 +742,43 @@ Symptom, cause, fix. Aborts (exit code 2) print the same advice on stderr.
 
 ## Versions and the Slint pin
 
-`uiprobe 0.18.x` serves Slint 1.18.x exactly: the harness pins `slint` and
-`i-slint-backend-testing` with `=1.18.1`, because the testing backend is an internal Slint
-crate without semver that pins `i-slint-core` exactly. `uiprobe::SLINT_VERSION` holds the
-version, the first console line prints it, and `report.json` carries it (`harness`, `slint`).
+`uiprobe 0.19.x` tracks Slint 1.19.x. Each harness release requires one exact Slint patch
+because the internal `i-slint-backend-testing` crate pins `i-slint-core` exactly. Use
+`slint = "=1.19.0"` and `slint-build = "=1.19.0"` with the harness version in the quick
+start. The selected Slint version is available through `uiprobe::SLINT_VERSION`, in the
+first console line, and in `report.json` alongside the harness version.
 
-What that means for your app: its `slint` must resolve to the same 1.18.1. Cargo allows one
-version of a 1.x crate per build, so a requirement that cannot be 1.18.1 does not build two
-copies, it fails to resolve (`failed to select a version for slint`, or for `uiprobe`).
-Two ways out: pin `slint = "=1.18.1"` in your app, or move to the harness release that serves
-your Slint line (one harness minor per Slint patch line). `cargo tree -i i-slint-core -e
-normal,dev` shows who pulls which version. A `git` or `path` Slint can still put two
-`i-slint-core`s into one build; the testing platform then lives in the wrong one and the first
-launch fails or aborts; `cargo tree -d` shows the duplicate.
+If your app pins a different Slint patch, select the matching harness release or update the
+app's pins. Run `cargo tree -i i-slint-core -e normal,dev` to see which crates depend on
+Slint's core. A `git` or `path` dependency can pull in a second copy with its own testing
+platform. Use `cargo tree -d` to find duplicates if the first launch fails.
 
-`uiprobe-hooks` has its own `0.1.x` line and no Slint dependency. Minimum Rust: 1.92
-(Slint's).
+The harness requires Rust 1.95. The Slint-independent `uiprobe-hooks` crate has its own
+`0.1.x` release line and requires Rust 1.92.
+
+### Maintaining the Slint pin
+
+The **Upgrade Slint** GitHub Actions workflow checks crates.io daily for a newer stable Slint
+1.x release. You can also start it from the repository's **Actions** tab. For a new Slint
+minor, the workflow proposes `0.<minor>.0` of uiprobe. For a Slint patch, it increments
+uiprobe's patch version. It opens a pull request after the repository checks pass. If a newer
+Slint release breaks the harness, the failed run in **Actions** shows which check needs a fix.
+Publishing to crates.io is a separate manual step after the merge.
+
+By default, a maintainer merges the PR. Enable **Allow GitHub Actions to create and approve
+pull requests** under **Settings → Actions → General → Workflow permissions** so the built-in
+token can open it. Select **Approve workflows to run** on the PR to run its CI checks.
+
+For unattended merges, configure the repository as follows.
+
+1. Require the `linux` CI check on the default branch and require branches to be up to date
+   before merging.
+2. Under **Settings → General → Pull Requests**, enable **Allow squash merging** and
+   **Allow auto-merge**.
+3. Under **Settings → Secrets and variables → Actions**, add `SLINT_UPGRADE_TOKEN` as a secret
+   containing a fine-grained personal access token restricted to this repository with
+   **Contents** and **Pull requests** read/write access. This lets PR checks start automatically.
+   Set the repository variable `SLINT_UPGRADE_AUTO_MERGE` to `true`.
 
 ## License
 

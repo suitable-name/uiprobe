@@ -4,7 +4,7 @@
 //! `cargo test --workspace` works here too). slint-build re-runs on that variable by itself.
 
 fn main() {
-    let mut config = slint_build::CompilerConfiguration::new();
+    let mut config = slint_build::CompilerConfiguration::new().with_edition((1, 19));
     if std::env::var_os("CARGO_FEATURE_UI_HARNESS").is_some() {
         config = config.with_debug_info(true);
     }

@@ -34,6 +34,7 @@ use std::{
 use uiprobe::prelude::*;
 
 slint::slint! {
+    #[edition = "1.19"]
     import { Button } from "std-widgets.slint";
 
     export component Fixture inherits Window {

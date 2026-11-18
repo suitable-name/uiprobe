@@ -3,7 +3,8 @@ name = "uiprobe-hooks"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
-rust-version.workspace = true
+# The hooks crate is std-only and independent of Slint's MSRV.
+rust-version = "1.92"
 readme = "../../README.md"
 repository.workspace = true
 description = "Std-only seams (file pickers, clipboard, opener, data dir) a Slint app calls under its ui-harness feature"

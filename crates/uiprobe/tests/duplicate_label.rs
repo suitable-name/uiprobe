@@ -10,6 +10,7 @@ use std::{cell::RefCell, process::ExitCode, rc::Rc};
 use uiprobe::prelude::*;
 
 slint::slint! {
+    #[edition = "1.19"]
     import { Button } from "std-widgets.slint";
 
     export component TwoOk inherits Window {

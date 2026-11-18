@@ -16,6 +16,7 @@
 //! use uiprobe::prelude::*;
 //!
 //! slint::slint! {
+//!     #[edition = "1.19"]
 //!     import { Button } from "std-widgets.slint";
 //!     export component MainWindow inherits Window {
 //!         in-out property <int> count;
@@ -104,10 +105,10 @@ pub use uiprobe_hooks as hooks;
 /// The exact Slint version this release of the harness is built against.
 ///
 /// It is the `=` pin on `slint` and `i-slint-backend-testing` in the harness's own manifest. The
-/// crate's minor version tracks Slint's (`uiprobe 0.18.x` serves Slint 1.18.x), which the unit test
+/// crate's minor version tracks Slint's (`uiprobe 0.N.x` serves Slint 1.N.x), which the unit test
 /// in this file enforces. The first console line of every run and the `slint` field of
 /// `report.json` show it.
-pub const SLINT_VERSION: &str = "1.18.1";
+pub const SLINT_VERSION: &str = "1.19.0";
 
 /// Everything a harness `main` and its scenarios usually need, `ExitCode` for the `main`
 /// signature included.

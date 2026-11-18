@@ -45,6 +45,7 @@ mod camera_badge;
 mod layers;
 
 slint::slint! {
+    #[edition = "1.19"]
     export component RecordFixture inherits Window {
         width: 200px;
         height: 100px;

@@ -1,0 +1,6 @@
+# The element query API of Slint's testing backend sees nothing unless the UI carries debug
+# info. The `slint!` macro in the self-test fixtures and the example's `slint-build` both read
+# this variable at COMPILE time; setting it here makes `cargo test --workspace` work without
+# anything set in the shell.
+[env]
+SLINT_EMIT_DEBUG_INFO = "1"

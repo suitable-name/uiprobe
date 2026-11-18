@@ -20,6 +20,7 @@ use uiprobe::{
 };
 
 slint::slint! {
+    #[edition = "1.19"]
     import { ScrollView, Button } from "std-widgets.slint";
 
     export component Fixture inherits Window {

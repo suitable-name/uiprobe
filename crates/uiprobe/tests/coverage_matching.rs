@@ -31,6 +31,7 @@ use uiprobe::{
 };
 
 slint::slint! {
+    #[edition = "1.19"]
     import { Button, LineEdit } from "std-widgets.slint";
 
     component Chip inherits Rectangle {

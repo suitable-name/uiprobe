@@ -12,6 +12,7 @@ use std::{cell::RefCell, process::ExitCode, rc::Rc};
 use uiprobe::{Harness, report::Report, smoke::Smoke};
 
 slint::slint! {
+    #[edition = "1.19"]
     import { Button } from "std-widgets.slint";
 
     export component Fixture inherits Window {

@@ -15,6 +15,7 @@ use slint::ComponentHandle;
 
 mod surface {
     slint::slint! {
+        #[edition = "1.19"]
         export component KeyText inherits Window {
             in property <string> label;
             in property <length> font-px;

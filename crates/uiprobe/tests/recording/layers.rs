@@ -466,11 +466,21 @@ pub fn still_reuse(bad: &Mismatches, app: &Attached, dir: &Path) -> Result<(), S
     );
 
     still_animation(bad, fixture, &mut rec)?;
+    // The main window is idle while only the attached window animates.
+    let overlay = StillFixture::new().map_err(|e| e.to_string())?;
+    overlay.show().map_err(|e| e.to_string())?;
+    uiprobe::screenshot::set_window_size(overlay.window(), (200, 100), 2.0);
+    rec.attach_window(&overlay, (0.0, 0.0));
+    rec.hold(Duration::from_millis(100))?;
+    still_animation(bad, &overlay, &mut rec)?;
+    rec.detach_window();
+    overlay.hide().map_err(|e| e.to_string())?;
+    cursor_over_still_picture(bad, &mut rec)?;
     rec.abandon();
     Ok(())
 }
 
-/// A running animation renders until it ends, and the cursor moves over a reused picture.
+/// A running animation renders until it ends.
 fn still_animation(
     bad: &Mismatches,
     fixture: &StillFixture,
@@ -495,7 +505,11 @@ fn still_animation(
         format!("the animation hold rendered {spent} times, wanted 8 to 16"),
     );
 
-    // The cursor and the ripple move over a reused picture.
+    Ok(())
+}
+
+/// The cursor and the ripple move over a reused picture.
+fn cursor_over_still_picture(bad: &Mismatches, rec: &mut Recorder<'_>) -> Result<(), String> {
     let renders = rec.captures();
     rec.move_to((150.0, 60.0), Duration::from_millis(500))?;
     check(

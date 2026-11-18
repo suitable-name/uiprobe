@@ -27,6 +27,7 @@ use std::{
 use uiprobe::prelude::*;
 
 slint::slint! {
+    #[edition = "1.19"]
     export component Probe inherits Window {
         width: 200px;
         height: 100px;

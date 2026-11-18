@@ -1,5 +1,14 @@
 # Changelog
 
+## uiprobe 0.19.0
+
+- The harness and examples now target Slint 1.19.0 and require Rust 1.95. Update your app's
+  `slint` and `slint-build` pins together when moving to this release.
+- The examples and test UIs use Slint's 1.19 language edition.
+- When still-frame reuse is enabled, the recorder checks the main window and each attached
+  window for active animations before reusing a captured frame.
+- `uiprobe-hooks` still uses version 0.1.0 and supports Rust 1.92.
+
 ## uiprobe 0.18.8
 
 Recording (feature `recording`); the defaults keep the old output, and every change is additive

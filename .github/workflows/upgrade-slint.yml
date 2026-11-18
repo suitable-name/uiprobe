@@ -1,0 +1,135 @@
+name: Upgrade Slint
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: upgrade-slint
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      artifact: ${{ steps.bundle.outputs.artifact }}
+      slint: ${{ steps.upgrade.outputs.slint }}
+      uiprobe: ${{ steps.upgrade.outputs.uiprobe }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: upgrade
+        run: python3 .github/scripts/upgrade_slint.py
+      - name: Lock dependencies and stage the candidate
+        id: bundle
+        if: steps.upgrade.outputs.slint != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.repository.default_branch }}
+          BRANCH: automation/slint-${{ steps.upgrade.outputs.slint }}
+          SLINT: ${{ steps.upgrade.outputs.slint }}
+          UIPROBE: ${{ steps.upgrade.outputs.uiprobe }}
+          AUTO_MERGE: ${{ vars.SLINT_UPGRADE_AUTO_MERGE }}
+        run: |
+          state=$(gh pr list --base "$BASE" --head "$BRANCH" --state all \
+            --json state,autoMergeRequest,isCrossRepository \
+            --jq 'map(select(.isCrossRepository == false))[0] | if .state == "OPEN" and .autoMergeRequest then "AUTO" else .state // "NEW" end')
+          if [[ "$state" == CLOSED || "$state" == MERGED ]]; then
+            echo "The PR for $SLINT was already closed."
+            exit 0
+          fi
+          remote_branch="refs/remotes/origin/$BRANCH"
+          if [[ "$state" != NEW ]] && git merge-base --is-ancestor "$GITHUB_SHA" "$remote_branch" \
+              && [[ "$AUTO_MERGE" != true || "$state" == AUTO ]]; then
+            echo "The PR for $SLINT is already up to date."
+            exit 0
+          fi
+          # Cargo adjusts the existing lock to the new exact pins.
+          cargo tree --workspace --depth 0
+          git switch -c "$BRANCH"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am "Update uiprobe to $UIPROBE for Slint $SLINT"
+          if git show-ref --verify --quiet "$remote_branch"; then
+            # Preserve the existing branch history. Refresh or retry it only when
+            # its merge with today's base yields exactly the expected upgrade.
+            git switch --detach "$remote_branch"
+            git merge --no-edit "$GITHUB_SHA"
+            if ! git diff --quiet "$BRANCH" HEAD; then
+              echo "::error::Existing $BRANCH differs from the generated upgrade and needs manual review."
+              exit 1
+            fi
+            git branch -f "$BRANCH" HEAD
+          fi
+          git bundle create "$RUNNER_TEMP/upgrade.bundle" "$BRANCH" "^$GITHUB_SHA"
+          echo "artifact=slint-upgrade-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: steps.bundle.outputs.artifact != ''
+        with:
+          name: ${{ steps.bundle.outputs.artifact }}
+          path: ${{ runner.temp }}/upgrade.bundle
+          retention-days: 3
+      - name: Run project CI on the candidate
+        if: steps.bundle.outputs.artifact != ''
+        run: bash .github/scripts/check.sh
+
+  pull-request:
+    needs: verify
+    if: needs.verify.outputs.artifact != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.SLINT_UPGRADE_TOKEN || github.token }}
+      BASE: ${{ github.event.repository.default_branch }}
+      BRANCH: automation/slint-${{ needs.verify.outputs.slint }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ env.GH_TOKEN }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.verify.outputs.artifact }}
+          path: ${{ runner.temp }}
+      - name: Open the verified upgrade
+        env:
+          UIPROBE: ${{ needs.verify.outputs.uiprobe }}
+          SLINT: ${{ needs.verify.outputs.slint }}
+          AUTO_MERGE: ${{ vars.SLINT_UPGRADE_AUTO_MERGE }}
+        run: |
+          base_head=$(git ls-remote --exit-code origin "refs/heads/$BASE" | cut -f1)
+          if [[ "$base_head" != "$GITHUB_SHA" ]]; then
+            echo "The default branch advanced during CI. The next run will check the new base."
+            exit 0
+          fi
+          pr=$(gh pr list --base "$BASE" --head "$BRANCH" --state all --json state,url,isCrossRepository \
+            --jq 'map(select(.isCrossRepository == false))[0] | if .state == "OPEN" then .url else .state // "" end')
+          if [[ "$pr" == CLOSED || "$pr" == MERGED ]]; then
+            echo "The PR for $SLINT was closed during verification."
+            exit 0
+          fi
+          git fetch "$RUNNER_TEMP/upgrade.bundle" "refs/heads/$BRANCH:refs/heads/$BRANCH"
+          head=$(git rev-parse "$BRANCH")
+          git push origin "refs/heads/$BRANCH:refs/heads/$BRANCH"
+          if [[ -z "$pr" ]]; then
+            pr=$(gh pr create --base "$BASE" --head "$BRANCH" \
+              --title "Update uiprobe to $UIPROBE for Slint $SLINT" \
+              --body "The workspace checks passed on this commit. Publishing to crates.io is manual.")
+          fi
+          echo "$pr" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$AUTO_MERGE" == true ]]; then
+            gh pr merge "$pr" --auto --squash --match-head-commit "$head"
+          fi

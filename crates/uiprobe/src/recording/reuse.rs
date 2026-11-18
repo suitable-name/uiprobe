@@ -6,7 +6,7 @@
 //!
 //! # Why this is a setting and not automatic
 //!
-//! Slint 1.18.1 has no reliable "the window needs a redraw" signal on the testing backend: its
+//! Slint's testing backend exposes no reliable "the window needs a redraw" signal: its
 //! window adapter ignores `request_redraw`, the software renderer's dirty region is internal and
 //! `take_snapshot` always renders the whole window, and the event queue that worker threads post
 //! results to cannot be inspected from outside. So the recorder knows about every change it
@@ -18,8 +18,8 @@
 //!   event of a glide), `refresh`, `attach_window` and `detach_window` mark the picture stale;
 //! * a timer due within the next frame (`slint::platform::duration_until_next_timer_update`)
 //!   marks it stale before the pump that would fire it;
-//! * an animation still running after a render (`Window::has_active_animations`, read right after
-//!   the render, the only moment it is valid) makes the next frame render;
+//! * an animation still running in either recorded window after a render
+//!   (`Window::has_active_animations`) makes the next frame render;
 //! * the time-lapse of `wait_while_recording` always renders (background work posts results);
 //! * a picture is reused for at most `still_reuse_frames - 1` frames in a row.
 //!
@@ -103,8 +103,11 @@ impl Recorder<'_> {
         self.reuse.captures += 1;
         self.reuse.run = 0;
         if limit > 1 {
-            // Valid only right after the render: the next pump resets it.
-            self.reuse.dirty = self.window().has_active_animations();
+            self.reuse.dirty = self.window().has_active_animations()
+                || self.overlay.as_ref().is_some_and(|overlay| {
+                    let window = overlay.window();
+                    window.is_visible() && window.has_active_animations()
+                });
             self.reuse.cache = Some(base.clone());
         }
         Ok(base)
