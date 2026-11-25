@@ -149,10 +149,7 @@ impl Scene {
             layer_of.push(layers.last().map(|(_, root)| *root));
             let clip = stack.last().map_or(Rect::UNBOUNDED, |(_, c)| *c);
             let visible = Rect::of(handle).intersect(&clip);
-            let type_name = handle
-                .type_name()
-                .map(|t| t.to_string())
-                .unwrap_or_default();
+            let type_name = handle.type_name().map_or_default(|t| t.to_string());
             if is_flickable(handle, &type_name) {
                 let count = descendant_count(handle);
                 if count > 0 {
@@ -249,15 +246,9 @@ pub fn role_element(handle: ElementHandle) -> Option<Control> {
     let size = handle.size();
     Some(Control {
         role,
-        label: handle
-            .accessible_label()
-            .map(|l| l.to_string())
-            .unwrap_or_default(),
-        id: handle.id().map(|i| i.to_string()).unwrap_or_default(),
-        type_name: handle
-            .type_name()
-            .map(|t| t.to_string())
-            .unwrap_or_default(),
+        label: handle.accessible_label().map_or_default(|l| l.to_string()),
+        id: handle.id().map_or_default(|i| i.to_string()),
+        type_name: handle.type_name().map_or_default(|t| t.to_string()),
         x: position.x,
         y: position.y,
         width: size.width,

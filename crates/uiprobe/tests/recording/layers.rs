@@ -427,7 +427,28 @@ pub fn still_reuse(bad: &Mismatches, app: &Attached, dir: &Path) -> Result<(), S
         "the reused frames of the next call are stale",
     );
 
-    // A timer that fires during a hold: the frame it fires in shows its effect.
+    still_timer(bad, fixture, &mut rec)?;
+    still_animation(bad, fixture, &mut rec)?;
+    // The main window is idle while only the attached window animates.
+    let overlay = StillFixture::new().map_err(|e| e.to_string())?;
+    overlay.show().map_err(|e| e.to_string())?;
+    uiprobe::screenshot::set_window_size(overlay.window(), (200, 100), 2.0);
+    rec.attach_window(&overlay, (0.0, 0.0));
+    rec.hold(Duration::from_millis(100))?;
+    still_animation(bad, &overlay, &mut rec)?;
+    rec.detach_window();
+    overlay.hide().map_err(|e| e.to_string())?;
+    cursor_over_still_picture(bad, &mut rec)?;
+    rec.abandon();
+    Ok(())
+}
+
+/// A timer that fires during a hold: the frame it fires in shows its effect.
+fn still_timer(
+    bad: &Mismatches,
+    fixture: &StillFixture,
+    rec: &mut Recorder<'_>,
+) -> Result<(), String> {
     let timer = slint::Timer::default();
     let target = fixture.as_weak();
     timer.start(
@@ -464,19 +485,6 @@ pub fn still_reuse(bad: &Mismatches, app: &Attached, dir: &Path) -> Result<(), S
             rec.captures() - renders
         ),
     );
-
-    still_animation(bad, fixture, &mut rec)?;
-    // The main window is idle while only the attached window animates.
-    let overlay = StillFixture::new().map_err(|e| e.to_string())?;
-    overlay.show().map_err(|e| e.to_string())?;
-    uiprobe::screenshot::set_window_size(overlay.window(), (200, 100), 2.0);
-    rec.attach_window(&overlay, (0.0, 0.0));
-    rec.hold(Duration::from_millis(100))?;
-    still_animation(bad, &overlay, &mut rec)?;
-    rec.detach_window();
-    overlay.hide().map_err(|e| e.to_string())?;
-    cursor_over_still_picture(bad, &mut rec)?;
-    rec.abandon();
     Ok(())
 }
 

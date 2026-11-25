@@ -12,7 +12,7 @@ members = ["crates/uiprobe", "crates/uiprobe-hooks", "examples/counter", "exampl
 [workspace.package]
 edition = "2024"
 license = "MIT"
-rust-version = "1.95"
+rust-version = "1.100"
 repository = "https://github.com/suitable-name/uiprobe"
 
 [workspace.dependencies]
@@ -21,16 +21,16 @@ repository = "https://github.com/suitable-name/uiprobe"
 # another Slint patch fails to resolve rather than building two `i-slint-core`s; a `git`/`path`
 # Slint could still produce two, and the testing platform would then live in the wrong one.
 # Each uiprobe 0.N release targets one exact Slint 1.N patch.
-slint = { version = "=1.19.0", default-features = false }
-slint-build = "=1.19.0"
-i-slint-backend-testing = "=1.19.0"
+slint = { version = "=1.19.1", default-features = false }
+slint-build = "=1.19.1"
+i-slint-backend-testing = "=1.19.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 toml = "1.1.6"
 png = "0.18.1"
 
 # Workspace members
-uiprobe = { path = "crates/uiprobe", version = "0.19.0" }
+uiprobe = { path = "crates/uiprobe", version = "0.19.1" }
 uiprobe-hooks = { path = "crates/uiprobe-hooks", version = "0.1.0" }
 
 [workspace.lints.clippy]

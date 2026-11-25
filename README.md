@@ -37,14 +37,14 @@ the smallest app; `examples/notes` is the full one (see Examples).
    ui-harness = ["dep:uiprobe-hooks"]
 
    [dependencies]
-   slint = "=1.19.0"
+   slint = "=1.19.1"
    uiprobe-hooks = { version = "0.1", optional = true }
 
    [build-dependencies]
-   slint-build = "=1.19.0"
+   slint-build = "=1.19.1"
 
    [dev-dependencies]
-   uiprobe = "=0.19.0"
+   uiprobe = "=0.19.1"
 
    [[test]]
    name = "ui"
@@ -265,8 +265,8 @@ run wrote. The finding texts are the same in every format.
 
 ## Console output
 
-Every line starts with `uiprobe`. In order: the banner (`uiprobe 0.19.0 (Slint
-1.19.0): 7 of 7 scenario(s) selected, report dir ...`), the profile directory and the guarded
+Every line starts with `uiprobe`. In order: the banner (`uiprobe 0.19.1 (Slint
+1.19.1): 7 of 7 scenario(s) selected, report dir ...`), the profile directory and the guarded
 paths, one `scenario <name>` line per scenario with its `-> N finding(s), M ms` and a `timing:`
 line (see Timing), the smoke counters, the coverage counters, the report files written, then `PASS, no findings` or `FAIL,
 N finding(s):` with the per-check counts and up to 25 findings as `[window] check: element --
@@ -373,7 +373,7 @@ the limit: a GPU-heavy app is slowed by workers sharing one GPU, so cap them wit
 
 ## Screenshots
 
-With the `screenshots` feature (`uiprobe = { version = "=0.19.0", features =
+With the `screenshots` feature (`uiprobe = { version = "=0.19.1", features =
 ["screenshots"] }`) a harness can draw its windows with Slint's software renderer and save them as
 PNG, for example to keep the screenshots of a README or a website in step with the UI:
 
@@ -408,7 +408,7 @@ Harness::new()
 
 ## Recording Videos
 
-With the `recording` feature (`uiprobe = { version = "=0.19.0", features = ["recording"] }`, which
+With the `recording` feature (`uiprobe = { version = "=0.19.1", features = ["recording"] }`, which
 implies `screenshots`) a harness can play the app and write an MP4 with a drawn mouse cursor, click
 ripples, captions and YouTube chapters, for example to keep tutorial videos in step with the UI.
 It needs `Harness::renderer(Renderer::Software)`, an even physical window size and ffmpeg at run
@@ -708,7 +708,7 @@ Symptom, cause, fix. Aborts (exit code 2) print the same advice on stderr.
   everywhere); for a real app compare counts on one machine and give a CI box its own baseline
   or a pinned font package.
 - **`cargo` fails with `failed to select a version for slint` after adding the harness.** Pin
-  `slint = "=1.19.0"` in your app, or use the harness release for your exact Slint version.
+  `slint = "=1.19.1"` in your app, or use the harness release for your exact Slint version.
 - **The report landed somewhere unexpected.** Run through `cargo test` (it sets
   `CARGO_TARGET_TMPDIR` and `CARGO_PKG_NAME`, from which `<target>/uiprobe/<package>`
   is derived) or set `Harness::report_dir` explicitly; the first console line always prints
@@ -744,7 +744,7 @@ Symptom, cause, fix. Aborts (exit code 2) print the same advice on stderr.
 
 `uiprobe 0.19.x` tracks Slint 1.19.x. Each harness release requires one exact Slint patch
 because the internal `i-slint-backend-testing` crate pins `i-slint-core` exactly. Use
-`slint = "=1.19.0"` and `slint-build = "=1.19.0"` with the harness version in the quick
+`slint = "=1.19.1"` and `slint-build = "=1.19.1"` with the harness version in the quick
 start. The selected Slint version is available through `uiprobe::SLINT_VERSION`, in the
 first console line, and in `report.json` alongside the harness version.
 
@@ -753,7 +753,7 @@ app's pins. Run `cargo tree -i i-slint-core -e normal,dev` to see which crates d
 Slint's core. A `git` or `path` dependency can pull in a second copy with its own testing
 platform. Use `cargo tree -d` to find duplicates if the first launch fails.
 
-The harness requires Rust 1.95. The Slint-independent `uiprobe-hooks` crate has its own
+The harness requires Rust 1.100. The Slint-independent `uiprobe-hooks` crate has its own
 `0.1.x` release line and requires Rust 1.92.
 
 ### Maintaining the Slint pin

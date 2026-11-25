@@ -172,8 +172,7 @@ fn config_dir() -> PathBuf {
         }
     }
     std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default()
+        .map_or_default(PathBuf::from)
         .join(".config")
 }
 

@@ -615,10 +615,7 @@ impl Scan {
         let elements = view.elements();
         let mut flickables = Vec::new();
         for (index, handle) in elements.iter().enumerate() {
-            let type_name = handle
-                .type_name()
-                .map(|name| name.to_string())
-                .unwrap_or_default();
+            let type_name = handle.type_name().map_or_default(|name| name.to_string());
             if !is_flickable(handle, &type_name) {
                 continue;
             }
@@ -737,14 +734,10 @@ fn fingerprint(handle: &ElementHandle) -> String {
     let rect = rect_of(handle);
     format!(
         "{}|{}|{:?}|{:.2}|{:.2}|{:.2}|{:.2}",
-        handle
-            .type_name()
-            .map(|name| name.to_string())
-            .unwrap_or_default(),
+        handle.type_name().map_or_default(|name| name.to_string()),
         handle
             .accessible_label()
-            .map(|label| label.to_string())
-            .unwrap_or_default(),
+            .map_or_default(|label| label.to_string()),
         handle.accessible_role(),
         rect.x,
         rect.y,

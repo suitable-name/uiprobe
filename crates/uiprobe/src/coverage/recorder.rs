@@ -103,8 +103,7 @@ fn record(handle: &ElementHandle, touched: bool) {
     // Indicatrix, `VerdictBadge`), which is how the one site of such a component is recognised.
     let bases: Vec<String> = handle
         .bases()
-        .map(|bases| bases.map(|base| base.to_string()).collect())
-        .unwrap_or_default();
+        .map_or_default(|bases| bases.map(|base| base.to_string()).collect());
     let mut rec = recorder();
     if let Some(name) = &type_name {
         if touched {

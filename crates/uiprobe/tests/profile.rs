@@ -60,9 +60,7 @@ fn main() -> ExitCode {
 fn child_outside() -> ExitCode {
     Harness::new()
         .profile(Profile::isolated().guard_paths(|| {
-            let outside = std::env::var_os(OUTSIDE_VAR)
-                .map(PathBuf::from)
-                .unwrap_or_default();
+            let outside = std::env::var_os(OUTSIDE_VAR).map_or_default(PathBuf::from);
             vec![outside.join("outside.txt")]
         }))
         .scenario("never-runs", |_ctx| Ok(()))

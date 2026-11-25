@@ -23,9 +23,23 @@ def releases(crate):
         }
 
 
+def read(path):
+    """Return a file's text with "\\n" line ends, and the line end the file itself uses."""
+    with open(path, encoding="utf-8", newline="") as file:
+        text = file.read()
+    return text.replace("\r\n", "\n"), "\r\n" if "\r\n" in text else "\n"
+
+
+def write(path, text, newline):
+    # Keep each file's own line ends: README.md uses CRLF, and a runner that rewrote them
+    # would put every line of the file in the pull request.
+    with open(path, "w", encoding="utf-8", newline=newline) as file:
+        file.write(text)
+
+
 def main():
     manifest = Path("Cargo.toml")
-    root = manifest.read_text(encoding="utf-8")
+    root, root_newline = read(manifest)
     workspace = tomllib.loads(root)["workspace"]
     deps = workspace["dependencies"]
     old_slint = deps["slint"]["version"].removeprefix("=")
@@ -72,35 +86,36 @@ def main():
         elif line.startswith("rust-version ="):
             line = line.replace(f'"{old_rust}"', f'"{rust}"')
         lines.append(line)
-    manifest.write_text("".join(lines), encoding="utf-8")
+    write(manifest, "".join(lines), root_newline)
 
     crate = Path("crates/uiprobe/Cargo.toml")
-    source = crate.read_text(encoding="utf-8")
+    source, newline = read(crate)
     if tomllib.loads(source)["package"]["version"] != old_probe:
         raise ValueError("The uiprobe package and workspace versions differ")
-    crate.write_text(source.replace(f'\nversion = "{old_probe}"\n', f'\nversion = "{probe}"\n', 1),
-                     encoding="utf-8")
+    write(crate, source.replace(f'\nversion = "{old_probe}"\n', f'\nversion = "{probe}"\n', 1),
+          newline)
 
     library = Path("crates/uiprobe/src/lib.rs")
-    source = library.read_text(encoding="utf-8")
+    source, newline = read(library)
     if f'pub const SLINT_VERSION: &str = "{old_slint}";' not in source:
         raise ValueError("SLINT_VERSION differs from the workspace pin")
-    library.write_text(current_versions(source), encoding="utf-8")
+    write(library, current_versions(source), newline)
 
     for path in (Path("README.md"), Path("docs/cookbook.md")):
-        source = current_versions(path.read_text(encoding="utf-8"))
+        source, newline = read(path)
         # Keep historical statements about previous uiprobe releases.
-        source = (source.replace(f'"={old_probe}"', f'"={probe}"')
+        source = (current_versions(source).replace(f'"={old_probe}"', f'"={probe}"')
                   .replace(f"uiprobe {old_probe} (Slint", f"uiprobe {probe} (Slint")
                   .replace(f"The harness requires Rust {old_rust}.", f"The harness requires Rust {rust}."))
-        path.write_text(source, encoding="utf-8")
+        write(path, source, newline)
 
     changelog = Path("CHANGELOG.md")
-    title, entries = changelog.read_text(encoding="utf-8").split("\n", 1)
+    source, newline = read(changelog)
+    title, entries = source.split("\n", 1)
     note = f"## uiprobe {probe}\n\nUpdate the exact Slint pin to {target}."
     if rust != old_rust:
         note += f" The harness now requires Rust {rust}."
-    changelog.write_text(f"{title}\n\n{note}\n{entries}", encoding="utf-8")
+    write(changelog, f"{title}\n\n{note}\n{entries}", newline)
     print(f"Preparing uiprobe {probe} for Slint {target}")
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
         print(f"slint={target}", f"uiprobe={probe}", sep="\n", file=output)

@@ -1,5 +1,9 @@
 # Changelog
 
+## uiprobe 0.19.1
+
+Update the exact Slint pin to 1.19.1. The harness now requires Rust 1.100.
+
 ## uiprobe 0.19.0
 
 - The harness and examples now target Slint 1.19.0 and require Rust 1.95. Update your app's

@@ -425,8 +425,8 @@ fn enumerate(
                 key,
                 occurrence,
                 describe: control.describe(),
-                label: control.label.clone(),
-                id: control.id.clone(),
+                label: control.label,
+                id: control.id,
             });
         }
     }

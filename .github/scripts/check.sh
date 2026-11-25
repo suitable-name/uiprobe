@@ -11,8 +11,11 @@ export RUSTUP_TOOLCHAIN
 rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
 
 # Exercise the recording sink and the example apps with and without their hooks.
+# ffmpeg serves the recording sink. Slint's font lookup needs fontconfig's development files at
+# build time: with this workspace's Slint features, `yeslogic-fontconfig-sys` finds the library
+# through pkg-config, and its build script fails on a runner without `fontconfig.pc`.
 sudo apt-get update
-sudo apt-get install -y ffmpeg
+sudo apt-get install -y ffmpeg libfontconfig-dev
 # Keep the many separately linked test binaries within the hosted runner's disk budget.
 export CARGO_PROFILE_DEV_DEBUG=0
 cargo build --workspace --locked

@@ -405,11 +405,8 @@ impl Control {
         Some(Self {
             role,
             label,
-            id: handle.id().map(|i| i.to_string()).unwrap_or_default(),
-            type_name: handle
-                .type_name()
-                .map(|t| t.to_string())
-                .unwrap_or_default(),
+            id: handle.id().map_or_default(|i| i.to_string()),
+            type_name: handle.type_name().map_or_default(|t| t.to_string()),
             x: position.x,
             y: position.y,
             width: size.width,

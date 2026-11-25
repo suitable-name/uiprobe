@@ -108,7 +108,7 @@ pub use uiprobe_hooks as hooks;
 /// crate's minor version tracks Slint's (`uiprobe 0.N.x` serves Slint 1.N.x), which the unit test
 /// in this file enforces. The first console line of every run and the `slint` field of
 /// `report.json` show it.
-pub const SLINT_VERSION: &str = "1.19.0";
+pub const SLINT_VERSION: &str = "1.19.1";
 
 /// Everything a harness `main` and its scenarios usually need, `ExitCode` for the `main`
 /// signature included.

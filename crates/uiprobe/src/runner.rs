@@ -285,7 +285,7 @@ impl Harness {
     /// Runs everything and returns the exit code: 0 clean (or `UIPROBE_ALLOW_FAIL`),
     /// 1 findings, 2 aborted (isolation could not be proven, no debug info). A harness with no
     /// scenarios at all is a `config` finding (exit code 1).
-    #[must_use]
+    #[must_use = "return the exit code from `main`, otherwise the findings do not fail the run"]
     pub fn run(self) -> ExitCode {
         let report = self.run_to_report();
         if report.is_empty() {
@@ -658,14 +658,12 @@ fn split_filters(
     env: Option<String>,
     args: impl Iterator<Item = String>,
 ) -> (Vec<String>, Vec<String>) {
-    let from_env: Vec<String> = env
-        .map(|text| {
-            text.split(',')
-                .map(|part| part.trim().to_owned())
-                .filter(|part| !part.is_empty())
-                .collect()
-        })
-        .unwrap_or_default();
+    let from_env: Vec<String> = env.map_or_default(|text| {
+        text.split(',')
+            .map(|part| part.trim().to_owned())
+            .filter(|part| !part.is_empty())
+            .collect()
+    });
     let from_args: Vec<String> = args.filter(|a| !a.starts_with('-')).collect();
     (from_env, from_args)
 }
